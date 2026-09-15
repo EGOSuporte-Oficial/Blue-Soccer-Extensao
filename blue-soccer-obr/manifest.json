@@ -1,0 +1,8 @@
+{
+  "name": "Blue Soccer — Estatísticas",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "description": "Bolhas de estatísticas (PA, Deslocamento e Despertar) para fichas de Blue Soccer RPG no Owlbear Rodeo.",
+  "author": "E.G.O. — Blue Soccer",
+  "background_url": "background.html"
+}
