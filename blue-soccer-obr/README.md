@@ -29,7 +29,7 @@ Como instalar na sua mesa
 
 1. No seu perfil da Owlbear Rodeo, clique em Add Extension.
 2. Cole esta URL:
-   https://EGOSuporte-Oficial.github.io/blue-soccer-obr/manifest.json
+   https://egosuporte-oficial.github.io/Blue-Soccer-Extensao/manifest.json
    
 3. Na sala, ative a extensão em Room Settings > Extensions.
 4. Clique com o botão direito num token (Personagem, Montaria ou Item) e
