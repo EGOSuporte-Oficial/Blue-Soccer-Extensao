@@ -22,14 +22,6 @@ export function panelIdFor(tokenId) {
 // ---------------------------------------------------------------------------
 // Ajustes visuais — mexa aqui se o painel ficar grande/pequeno/deslocado
 // demais em relação aos tokens da sua mesa.
-//
-// O painel é um item do tipo "Label" (bolha de texto com fundo), que a OBR
-// desenha em "screen-space": o TAMANHO (largura/altura/fonte) fica sempre
-// igual na tela, não importa o zoom — por isso PANEL_WIDTH/FONT_SIZE etc.
-// são pixels de tela fixos. Já a POSIÇÃO é em coordenadas do mundo (a mesma
-// usada pelos tokens), por isso o deslocamento vertical é multiplicado pelo
-// DPI do grid da cena, pra continuar logo abaixo do token em qualquer grid.
-// OFFSET_Y_GRID assume um token de 1x1 quadrado — aumente para tokens maiores.
 // ---------------------------------------------------------------------------
 export const VISUAL = {
   OFFSET_Y_GRID: 0.85, // deslocamento vertical (múltiplos do DPI do grid)
@@ -57,6 +49,7 @@ export function defaultStats() {
       ativo: false, // true durante as 5 rodadas do Despertar
       rodadasRestantes: 0,
       penalidadeRodadas: 0, // -1 em todos atributos por 3 rodadas, pós-Despertar
+      usado: false, // Despertar só pode ser usado 1x por partida (Livro do Jogador)
     },
     fluxo: {
       usado: false, // Fluxo só pode ser ativado 1x por partida
@@ -114,23 +107,43 @@ export function clamp(value, min, max) {
 }
 
 // ---------------------------------------------------------------------------
+// Regra do Livro do Jogador: um jogador Com a Bola (CaB), se não tiver
+// nenhuma habilidade que diga o contrário, tem o Deslocamento cortado pela
+// metade enquanto estiver com a posse. Esse "máximo efetivo" é usado tanto
+// no painel de edição quanto na bolha do token, e também é o teto usado ao
+// recuperar o Deslocamento em uma Nova Rodada.
+// ---------------------------------------------------------------------------
+export function deslocamentoMaximoEfetivo(stats) {
+  if (stats.posseDeBola) {
+    return Math.max(1, Math.floor(stats.deslocamento.maximo / 2));
+  }
+  return stats.deslocamento.maximo;
+}
+
+// ---------------------------------------------------------------------------
 // Monta o texto (linhas) e a cor do painel a partir das estatísticas atuais.
 // Mantido separado da geometria/SDK para poder ser testado isoladamente.
 // ---------------------------------------------------------------------------
 export function buildPanelContent(stats) {
   const lines = [];
+  const deslocMax = deslocamentoMaximoEfetivo(stats);
+  const deslocSufixo = stats.posseDeBola ? " (½)" : "";
 
   lines.push(
-    `PA ${stats.pa.atual}/${stats.pa.maximo}   Desloc. ${stats.deslocamento.atual}/${stats.deslocamento.maximo}m`
+    `PA ${stats.pa.atual}/${stats.pa.maximo}   Desloc. ${stats.deslocamento.atual}/${deslocMax}m${deslocSufixo}`
   );
 
   const pontos = clamp(stats.despertar.pontos, 0, 10);
   const pips = "●".repeat(pontos) + "○".repeat(10 - pontos);
-  let despertarLine = `Despertar ${pips} ${pontos}/10`;
+  let despertarLine;
   if (stats.despertar.ativo) {
-    despertarLine += `  ⚡ ATIVO (${stats.despertar.rodadasRestantes}r)`;
+    despertarLine = `Despertar ⚡ ATIVO (${stats.despertar.rodadasRestantes}r)`;
   } else if (stats.despertar.penalidadeRodadas > 0) {
-    despertarLine += `  ⚠ -1 atributos (${stats.despertar.penalidadeRodadas}r)`;
+    despertarLine = `Despertar ⚠ -1 atributos (${stats.despertar.penalidadeRodadas}r)`;
+  } else if (stats.despertar.usado) {
+    despertarLine = `Despertar (já usado nesta partida)`;
+  } else {
+    despertarLine = `Despertar ${pips} ${pontos}/10`;
   }
   lines.push(despertarLine);
 
@@ -151,15 +164,18 @@ export function buildPanelContent(stats) {
 
 // ---------------------------------------------------------------------------
 // Regra de "Nova Rodada" (Livro do Jogador, seção Iniciativa):
-// - PA e Deslocamento voltam ao máximo.
+// - PA volta ao máximo; Deslocamento volta ao máximo efetivo (considerando
+//   Posse de Bola).
 // - Contadores de duração (Despertar ativo, penalidade, Fluxo ativo,
 //   exaustão do Fluxo) descem 1 e, ao chegarem a 0, desligam o estado.
+// - Quando o Despertar termina naturalmente (rodadas acabam), ele também
+//   fica marcado como "usado" — só pode acontecer 1x por partida.
 // ---------------------------------------------------------------------------
 export function advanceRound(stats) {
   const next = deepMerge(defaultStats(), stats);
 
   next.pa.atual = next.pa.maximo;
-  next.deslocamento.atual = next.deslocamento.maximo;
+  next.deslocamento.atual = deslocamentoMaximoEfetivo(next);
 
   if (next.despertar.ativo) {
     next.despertar.rodadasRestantes = Math.max(0, next.despertar.rodadasRestantes - 1);
@@ -167,6 +183,7 @@ export function advanceRound(stats) {
       next.despertar.ativo = false;
       next.despertar.penalidadeRodadas = 3; // -1 em todos atributos por 3 rodadas
       next.despertar.pontos = 0;
+      next.despertar.usado = true;
     }
   } else if (next.despertar.penalidadeRodadas > 0) {
     next.despertar.penalidadeRodadas -= 1;
