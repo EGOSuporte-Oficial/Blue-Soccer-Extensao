@@ -1,18 +1,25 @@
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3";
-import { ID, PARENT_KEY, STATS_KEY } from "./shared.js";
-import { renderDetail, removeDetail } from "./panel.js";
+import { ID, STATS_KEY, HIDDEN_MARKERS_KEY } from "./shared.js";
+import { renderMarker, removeMarker, renderDetail, removeDetail } from "./panel.js";
 
 const BASE_URL = "https://egosuporte-oficial.github.io/Blue-Soccer-Extensao";
 
-// IDs de token que atualmente têm um "detalhe" local exibido nesta sessão
-// (ou seja, que este jogador tem selecionados agora). Usado pra saber o que
-// remover quando a seleção muda ou quando o token some do cenário.
+// Cópia mais recente de todos os itens da cena (atualizada pelo onChange
+// abaixo), pra não precisar buscar de novo toda hora.
+let cachedItems = [];
+
+// Tokens que ESTE cliente está mostrando marcador/detalhe agora — usado só
+// pra saber o que remover quando algo muda (deixa de ser rastreado, foi
+// escondido pela preferência do jogador, ou o token sumiu).
+let renderedMarkerIds = new Set();
 let detailedTokenIds = new Set();
 
 OBR.onReady(async () => {
+  cachedItems = await OBR.scene.items.getItems();
   setupContextMenu();
-  setupOrphanCleanup();
-  setupSelectionDetail();
+  setupSceneSync();
+  setupPlayerSync();
+  await syncMarkers();
 });
 
 // ---------------------------------------------------------------------------
@@ -56,17 +63,67 @@ function setupContextMenu() {
 }
 
 // ---------------------------------------------------------------------------
-// Detalhe sob seleção: quando este jogador seleciona um token que tem
-// estatísticas de Blue Soccer, mostra o painel completo (local, só pra ele).
-// Ao desselecionar, o painel some. `OBR.player.onChange` dispara sempre que
-// a seleção (ou qualquer outra propriedade do jogador) muda.
+// Marcador: cada cliente decide, pra cada token com estatísticas, se mostra
+// o marcador compacto — com base na preferência PESSOAL desse jogador
+// (HIDDEN_MARKERS_KEY em OBR.player.metadata, um array de IDs de token que
+// ELE escolheu não ver). Isso roda de novo sempre que os itens da cena
+// mudam (token novo, estatística editada) ou a preferência do jogador muda.
 // ---------------------------------------------------------------------------
-function setupSelectionDetail() {
+async function getHiddenSet() {
+  const metadata = await OBR.player.getMetadata();
+  const arr = metadata?.[HIDDEN_MARKERS_KEY];
+  return new Set(Array.isArray(arr) ? arr : []);
+}
+
+async function syncMarkers() {
+  const hidden = await getHiddenSet();
+  const trackedIds = new Set(
+    cachedItems.filter((it) => it.metadata?.[STATS_KEY]).map((it) => it.id)
+  );
+
+  for (const id of Array.from(renderedMarkerIds)) {
+    if (!trackedIds.has(id) || hidden.has(id)) {
+      await removeMarker(id);
+      renderedMarkerIds.delete(id);
+    }
+  }
+
+  for (const id of trackedIds) {
+    if (hidden.has(id)) continue;
+    await renderMarker(id);
+    renderedMarkerIds.add(id);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reage a mudanças na cena: dados de estatística mudaram, token novo
+// apareceu, ou um token foi apagado (nesse caso, limpa marcador e detalhe
+// órfãos deste cliente).
+// ---------------------------------------------------------------------------
+function setupSceneSync() {
+  OBR.scene.items.onChange(async (items) => {
+    cachedItems = items;
+    await syncMarkers();
+
+    const ids = new Set(items.map((it) => it.id));
+    for (const tokenId of Array.from(detailedTokenIds)) {
+      if (!ids.has(tokenId)) {
+        await removeDetail(tokenId);
+        detailedTokenIds.delete(tokenId);
+      }
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reage a mudanças no jogador: seleção (mostra/some o detalhe completo) e
+// preferência de marcador (mostra/some o marcador compacto pra este token).
+// ---------------------------------------------------------------------------
+function setupPlayerSync() {
   OBR.player.onChange(async (player) => {
     const selection = player.selection ?? [];
     const selectedSet = new Set(selection);
 
-    // Remove o detalhe de tokens que não estão mais selecionados.
     for (const id of Array.from(detailedTokenIds)) {
       if (!selectedSet.has(id)) {
         await removeDetail(id);
@@ -74,44 +131,15 @@ function setupSelectionDetail() {
       }
     }
 
-    // Mostra o detalhe pra tokens recém-selecionados que tenham estatísticas.
     for (const id of selection) {
       if (detailedTokenIds.has(id)) continue;
-      const [item] = await OBR.scene.items.getItems([id]);
+      const item = cachedItems.find((it) => it.id === id);
       if (item?.metadata?.[STATS_KEY]) {
         await renderDetail(id);
         detailedTokenIds.add(id);
       }
     }
-  });
-}
 
-// ---------------------------------------------------------------------------
-// Limpeza de segurança: se alguém apagar o token diretamente (sem passar
-// pelo editor), o marcador anexado fica "órfão" no cenário. Aqui a gente
-// detecta e remove — tanto o marcador sincronizado quanto um eventual
-// detalhe local que ainda estivesse aberto pra esse token.
-// ---------------------------------------------------------------------------
-function setupOrphanCleanup() {
-  OBR.scene.items.onChange(async (items) => {
-    const ids = new Set(items.map((it) => it.id));
-
-    const orphanMarkers = items
-      .filter((it) => it.metadata?.[PARENT_KEY] && !ids.has(it.metadata[PARENT_KEY]))
-      .map((it) => it.id);
-    if (orphanMarkers.length) {
-      try {
-        await OBR.scene.items.deleteItems(orphanMarkers);
-      } catch {
-        // outro cliente já deve ter removido — sem problema.
-      }
-    }
-
-    for (const tokenId of Array.from(detailedTokenIds)) {
-      if (!ids.has(tokenId)) {
-        await removeDetail(tokenId);
-        detailedTokenIds.delete(tokenId);
-      }
-    }
+    await syncMarkers();
   });
 }
