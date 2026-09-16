@@ -14,6 +14,7 @@ const itemId = new URLSearchParams(location.search).get("id");
 
 let stats = null;
 let role = "PLAYER";
+let activeTab = "stats"; // "stats" | "acoes"
 
 OBR.onReady(init);
 
@@ -50,7 +51,7 @@ function pips(n) {
 }
 
 function render() {
-  app.innerHTML = template(stats, role);
+  app.innerHTML = template(stats);
   wire();
 }
 
@@ -69,9 +70,9 @@ function template(s) {
     despertarUsado || (!s.despertar.ativo && s.despertar.pontos < 10) ? "disabled" : "";
   const despertarPontosDisabled = despertarUsado ? "disabled" : "";
   const despertarStatus = s.despertar.ativo
-    ? `⚡ Ativo — ${s.despertar.rodadasRestantes} rodada(s) restante(s)`
+    ? `Ativo — ${s.despertar.rodadasRestantes} rodada(s) restante(s)`
     : s.despertar.penalidadeRodadas > 0
-    ? `⚠ Penalidade -1 em atributos — ${s.despertar.penalidadeRodadas} rodada(s)`
+    ? `Penalidade -1 em atributos — ${s.despertar.penalidadeRodadas} rodada(s)`
     : despertarUsado
     ? "Já usado nesta partida"
     : "";
@@ -90,10 +91,7 @@ function template(s) {
     ? "Já usado nesta partida"
     : "";
 
-  return `
-    <h1>Editar Estatísticas</h1>
-    <p class="subtitle">Blue Soccer RPG</p>
-
+  const statsTab = `
     <div class="card">
       <div class="card-title"><span class="dot pa"></span>Pontos de Ação</div>
       <div class="row">
@@ -124,7 +122,7 @@ function template(s) {
       </div>
       ${
         s.posseDeBola
-          ? `<p class="hint">⚠ Com a bola: deslocamento efetivo agora é <strong>${deslocMax}m</strong> (metade do máximo), a menos que uma habilidade diga o contrário.</p>`
+          ? `<p class="hint">Atenção — com a bola: deslocamento efetivo agora é <strong>${deslocMax}m</strong> (metade do máximo), a menos que uma habilidade diga o contrário.</p>`
           : ""
       }
     </div>
@@ -163,21 +161,38 @@ function template(s) {
     <div class="card">
       <label class="checkbox">
         <input type="checkbox" id="posse-bola" ${s.posseDeBola ? "checked" : ""} />
-        ⚽ Posse de Bola
+        Posse de Bola
       </label>
       <p class="hint">Enquanto estiver com a bola, o Deslocamento fica pela metade (a menos que uma habilidade diga o contrário).</p>
     </div>
 
-    <button class="round" id="nova-rodada">Nova Rodada — recupera PA e Deslocamento</button>
-
     <p class="hint">
       Dica: em qualquer campo de número (PA, Deslocamento ou Despertar —
       atual ou máximo), digite <strong>+2</strong> ou <strong>-1</strong> e
-      aperte Enter (ou saia do campo) para somar/subtrair rápido — como na
-      Stat Bubbles for D&amp;D.
+      aperte Enter (ou saia do campo) para somar/subtrair rápido.
     </p>
+  `;
 
+  const acoesTab = `
+    <button class="round" id="nova-rodada">Nova Rodada — recupera PA e Deslocamento</button>
     <button class="link-btn" id="remover">Remover estatísticas deste token</button>
+  `;
+
+  return `
+    <h1>Editar Estatísticas</h1>
+    <p class="subtitle">Blue Soccer RPG</p>
+
+    <div class="tabs">
+      <button class="tab-btn ${activeTab === "stats" ? "active" : ""}" data-tab="stats">Estatísticas</button>
+      <button class="tab-btn ${activeTab === "acoes" ? "active" : ""}" data-tab="acoes">Ações</button>
+    </div>
+
+    <div class="tab-panel" style="${activeTab === "stats" ? "" : "display:none;"}">
+      ${statsTab}
+    </div>
+    <div class="tab-panel" style="${activeTab === "acoes" ? "" : "display:none;"}">
+      ${acoesTab}
+    </div>
   `;
 }
 
@@ -186,7 +201,7 @@ function template(s) {
 // nunca o objeto em si. A Owlbear Rodeo processa o valor gravado internamente
 // e pode deixá-lo somente-leitura depois — se a gente entregasse o mesmo
 // objeto que continua em uso aqui no editor, qualquer edição seguinte falhava
-// silenciosamente (era exatamente o bug de "só a primeira mudança funciona").
+// silenciosamente.
 // ---------------------------------------------------------------------------
 async function save() {
   await OBR.scene.items.updateItems([itemId], (items) => {
@@ -209,6 +224,13 @@ function wireEnterToBlur(id) {
 }
 
 function wire() {
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeTab = btn.dataset.tab;
+      render();
+    });
+  });
+
   byId("pa-atual").addEventListener("change", (e) => {
     stats.pa.atual = clamp(parseInlineValue(e.target.value, stats.pa.atual), 0, stats.pa.maximo);
     save();
