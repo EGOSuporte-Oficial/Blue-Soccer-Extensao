@@ -250,6 +250,18 @@ button.primary:hover:not(:disabled) {
   filter: brightness(1.08);
 }
 
+button.toggle-active {
+  background: var(--desloc);
+  border-color: var(--desloc);
+  color: #06213d;
+  font-weight: 700;
+}
+
+button.toggle-active:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 button.round {
   width: 100%;
   background: var(--pa);
