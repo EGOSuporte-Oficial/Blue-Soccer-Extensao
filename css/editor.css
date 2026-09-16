@@ -63,6 +63,40 @@ h1 {
   margin: 0 0 4px;
 }
 
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  color: var(--text-dim);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab-btn:hover {
+  background: #2c2f38;
+}
+
+.tab-btn.active {
+  color: var(--text);
+  background: var(--bg-panel);
+  border-bottom: 2px solid var(--desloc);
+}
+
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .card {
   background: var(--bg-panel);
   border: 1px solid var(--border);
