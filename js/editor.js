@@ -1,330 +1,204 @@
-import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3";
-import {
-  getStats,
-  STATS_KEY,
-  parseInlineValue,
-  clamp,
-  advanceRound,
-  deslocamentoMaximoEfetivo,
-} from "./shared.js";
-import { renderPanel, removePanel } from "./panel.js";
+// ---------------------------------------------------------------------------
+// Blue Soccer — Estatísticas para Owlbear Rodeo
+// Módulo compartilhado entre background.js e editor.js
+// ---------------------------------------------------------------------------
 
-const app = document.getElementById("app");
-const itemId = new URLSearchParams(location.search).get("id");
+// Namespace da extensão (notação de domínio reverso, como recomenda a OBR).
+export const ID = "com.egoblue.bluesoccer";
 
-let stats = null;
-let role = "PLAYER";
-let activeTab = "stats"; // "stats" | "acoes"
+// Chave de metadata onde guardamos os dados de jogo no próprio token.
+export const STATS_KEY = `${ID}/stats`;
 
-OBR.onReady(init);
+// Chave de metadata gravada na bolha, apontando de volta pro token-dono.
+// Serve só pra limpeza de "órfãs" (bolha cujo token foi apagado).
+export const PARENT_KEY = `${ID}/parentId`;
 
-async function init() {
-  if (!itemId) {
-    app.innerHTML = `<p class="error">Nenhum token selecionado.</p>`;
-    return;
-  }
-
-  role = await OBR.player.getRole();
-  const [item] = await OBR.scene.items.getItems([itemId]);
-  if (!item) {
-    app.innerHTML = `<p class="error">Este token não existe mais.</p>`;
-    return;
-  }
-
-  stats = getStats(item);
-
-  if (role !== "GM" && !stats.visivelParaJogadores) {
-    app.innerHTML = `
-      <div class="locked">
-        <strong>Estatísticas ocultas</strong><br />
-        Somente o Mestre pode ver as estatísticas deste token.
-      </div>`;
-    return;
-  }
-
-  render();
-}
-
-function pips(n) {
-  const p = clamp(n, 0, 10);
-  return "●".repeat(p) + "○".repeat(10 - p);
-}
-
-function render() {
-  app.innerHTML = template(stats);
-  wire();
-}
-
-function template(s) {
-  const deslocMax = deslocamentoMaximoEfetivo(s);
-
-  const despertarUsado = s.despertar.usado;
-  const despertarBtnLabel = despertarUsado
-    ? "Despertar já usado"
-    : s.despertar.ativo
-    ? "Desativar Despertar"
-    : s.despertar.pontos >= 10
-    ? "Ativar Despertar"
-    : `Ativar Despertar (${s.despertar.pontos}/10)`;
-  const despertarBtnDisabled =
-    despertarUsado || (!s.despertar.ativo && s.despertar.pontos < 10) ? "disabled" : "";
-  const despertarPontosDisabled = despertarUsado ? "disabled" : "";
-  const despertarStatus = s.despertar.ativo
-    ? `Ativo — ${s.despertar.rodadasRestantes} rodada(s) restante(s)`
-    : s.despertar.penalidadeRodadas > 0
-    ? `Penalidade -1 em atributos — ${s.despertar.penalidadeRodadas} rodada(s)`
-    : despertarUsado
-    ? "Já usado nesta partida"
-    : "";
-
-  const fluxoBtnLabel = s.fluxo.ativo
-    ? "Desativar Fluxo"
-    : s.fluxo.usado
-    ? "Fluxo já usado"
-    : "Ativar Fluxo (-3 PA)";
-  const fluxoBtnDisabled = !s.fluxo.ativo && s.fluxo.usado ? "disabled" : "";
-  const fluxoStatus = s.fluxo.ativo
-    ? `Ativo — ${s.fluxo.rodadasRestantes} rodada(s) restante(s)`
-    : s.fluxo.exaustaoRodadas > 0
-    ? `Exaustão (Desvantagem, -2 fixo) — ${s.fluxo.exaustaoRodadas} rodada(s)`
-    : s.fluxo.usado
-    ? "Já usado nesta partida"
-    : "";
-
-  const statsTab = `
-    <div class="card">
-      <div class="card-title"><span class="dot pa"></span>Pontos de Ação</div>
-      <div class="row">
-        <div class="field-col">
-          <input type="text" id="pa-atual" value="${s.pa.atual}" inputmode="numeric" />
-          <span class="field-col-label">Atual</span>
-        </div>
-        <span class="slash">/</span>
-        <div class="field-col">
-          <input type="text" id="pa-maximo" value="${s.pa.maximo}" inputmode="numeric" />
-          <span class="field-col-label">Máximo</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><span class="dot desloc"></span>Deslocamento (metros)</div>
-      <div class="row">
-        <div class="field-col">
-          <input type="text" id="desloc-atual" value="${s.deslocamento.atual}" inputmode="numeric" />
-          <span class="field-col-label">Atual</span>
-        </div>
-        <span class="slash">/</span>
-        <div class="field-col">
-          <input type="text" id="desloc-maximo" value="${s.deslocamento.maximo}" inputmode="numeric" />
-          <span class="field-col-label">Máximo</span>
-        </div>
-      </div>
-      ${
-        s.posseDeBola
-          ? `<p class="hint">Atenção — com a bola: deslocamento efetivo agora é <strong>${deslocMax}m</strong> (metade do máximo), a menos que uma habilidade diga o contrário.</p>`
-          : ""
-      }
-    </div>
-
-    <div class="card">
-      <div class="card-title"><span class="dot despertar"></span>Pontos de Despertar</div>
-      <div class="row split">
-        <div class="field">
-          <input type="text" id="despertar-pontos" value="${s.despertar.pontos}" inputmode="numeric" ${despertarPontosDisabled} />
-          <span class="slash">/ 10</span>
-        </div>
-        <button id="despertar-toggle" ${despertarBtnDisabled}>${despertarBtnLabel}</button>
-      </div>
-      <div class="pips">${pips(s.despertar.pontos)}</div>
-      <div class="row split">
-        <label class="checkbox">
-          <input type="checkbox" id="despertar-usado" ${s.despertar.usado ? "checked" : ""} />
-          Já usado nesta partida
-        </label>
-      </div>
-      <div class="status-line ${s.despertar.ativo ? "active" : ""}">${despertarStatus}</div>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><span class="dot fluxo"></span>Fluxo</div>
-      <div class="row split">
-        <label class="checkbox">
-          <input type="checkbox" id="fluxo-usado" ${s.fluxo.usado ? "checked" : ""} />
-          Já usado nesta partida
-        </label>
-        <button id="fluxo-toggle" ${fluxoBtnDisabled}>${fluxoBtnLabel}</button>
-      </div>
-      <div class="status-line ${s.fluxo.ativo ? "active" : ""}">${fluxoStatus}</div>
-    </div>
-
-    <div class="card">
-      <label class="checkbox">
-        <input type="checkbox" id="posse-bola" ${s.posseDeBola ? "checked" : ""} />
-        Posse de Bola
-      </label>
-      <p class="hint">Enquanto estiver com a bola, o Deslocamento fica pela metade (a menos que uma habilidade diga o contrário).</p>
-    </div>
-
-    <p class="hint">
-      Dica: em qualquer campo de número (PA, Deslocamento ou Despertar —
-      atual ou máximo), digite <strong>+2</strong> ou <strong>-1</strong> e
-      aperte Enter (ou saia do campo) para somar/subtrair rápido.
-    </p>
-  `;
-
-  const acoesTab = `
-    <button class="round" id="nova-rodada">Nova Rodada — recupera PA e Deslocamento</button>
-    <button class="link-btn" id="remover">Remover estatísticas deste token</button>
-  `;
-
-  return `
-    <h1>Editar Estatísticas</h1>
-    <p class="subtitle">Blue Soccer RPG</p>
-
-    <div class="tabs">
-      <button class="tab-btn ${activeTab === "stats" ? "active" : ""}" data-tab="stats">Estatísticas</button>
-      <button class="tab-btn ${activeTab === "acoes" ? "active" : ""}" data-tab="acoes">Ações</button>
-    </div>
-
-    <div class="tab-panel" style="${activeTab === "stats" ? "" : "display:none;"}">
-      ${statsTab}
-    </div>
-    <div class="tab-panel" style="${activeTab === "acoes" ? "" : "display:none;"}">
-      ${acoesTab}
-    </div>
-  `;
+// ID determinístico da bolha de um token — permite achar/atualizar o mesmo
+// item sempre, sem precisar guardar referências cruzadas em metadata.
+export function panelIdFor(tokenId) {
+  return `${ID}/panel/${tokenId}`;
 }
 
 // ---------------------------------------------------------------------------
-// IMPORTANTE: sempre grava uma cópia "limpa" (JSON) do objeto de estatísticas,
-// nunca o objeto em si. A Owlbear Rodeo processa o valor gravado internamente
-// e pode deixá-lo somente-leitura depois — se a gente entregasse o mesmo
-// objeto que continua em uso aqui no editor, qualquer edição seguinte falhava
-// silenciosamente.
+// Ajustes visuais — mexa aqui se o painel ficar grande/pequeno/deslocado
+// demais em relação aos tokens da sua mesa.
 // ---------------------------------------------------------------------------
-async function save() {
-  await OBR.scene.items.updateItems([itemId], (items) => {
-    for (const item of items) {
-      item.metadata[STATS_KEY] = JSON.parse(JSON.stringify(stats));
+export const VISUAL = {
+  OFFSET_Y_GRID: 0.85, // deslocamento vertical (múltiplos do DPI do grid)
+  PANEL_WIDTH: 200, // px de tela
+  PANEL_HEIGHT_PER_LINE: 22, // px de tela por linha de texto
+  PANEL_PADDING: 8, // px de tela
+  FONT_SIZE: 13, // px de tela
+  CORNER_RADIUS: 10,
+  COLOR_NORMAL: "#17365c", // azul-marinho (Blue Soccer)
+  COLOR_DESPERTAR: "#caa53d", // dourado — Despertar ativo
+  COLOR_PENALIDADE: "#5c2323", // vermelho escuro — penalidade pós-Despertar/Fluxo
+  TEXT_COLOR: "#f4f6fb",
+};
+
+// ---------------------------------------------------------------------------
+// Modelo de dados padrão de um jogador de Blue Soccer.
+// Baseado no Livro do Jogador 0.9.3.2 (PA, Deslocamento e Despertar).
+// ---------------------------------------------------------------------------
+export function defaultStats() {
+  return {
+    pa: { atual: 3, maximo: 3 },
+    deslocamento: { atual: 6, maximo: 6 },
+    despertar: {
+      pontos: 0, // 0–10, acumulado durante a partida
+      ativo: false, // true durante as 5 rodadas do Despertar
+      rodadasRestantes: 0,
+      penalidadeRodadas: 0, // -1 em todos atributos por 3 rodadas, pós-Despertar
+      usado: false, // Despertar só pode ser usado 1x por partida (Livro do Jogador)
+    },
+    fluxo: {
+      usado: false, // Fluxo só pode ser ativado 1x por partida
+      ativo: false, // true durante as 5 rodadas do Fluxo
+      rodadasRestantes: 0,
+      exaustaoRodadas: 0, // Desvantagem + -2 fixo por 2 rodadas, pós-Fluxo
+    },
+    posseDeBola: false,
+    visivelParaJogadores: true, // trava de GM, equivalente ao "Player Editable"
+  };
+}
+
+function deepMerge(base, extra) {
+  if (!extra || typeof extra !== "object") return base;
+  const out = Array.isArray(base) ? [...base] : { ...base };
+  for (const key of Object.keys(base)) {
+    if (
+      extra[key] !== undefined &&
+      typeof base[key] === "object" &&
+      base[key] !== null &&
+      !Array.isArray(base[key])
+    ) {
+      out[key] = deepMerge(base[key], extra[key]);
+    } else if (extra[key] !== undefined) {
+      out[key] = extra[key];
     }
-  });
-  await renderPanel(itemId);
-  render();
+  }
+  return out;
 }
 
-function byId(id) {
-  return document.getElementById(id);
+// Lê as estatísticas de um item, preenchendo com o padrão qualquer campo
+// que ainda não exista (tokens novos, ou extensão atualizada com novos campos).
+export function getStats(item) {
+  const stored = item?.metadata?.[STATS_KEY];
+  return deepMerge(defaultStats(), stored);
 }
 
-function wireEnterToBlur(id) {
-  byId(id).addEventListener("keydown", (e) => {
-    if (e.key === "Enter") e.target.blur();
-  });
+// ---------------------------------------------------------------------------
+// Parser de expressões rápidas, no estilo da Stat Bubbles for D&D:
+// digitar "+2" soma ao valor atual, "-1" subtrai, e um número "puro"
+// substitui o valor. Sempre arredonda pro inteiro mais próximo.
+// ---------------------------------------------------------------------------
+export function parseInlineValue(inputStr, currentValue) {
+  const trimmed = String(inputStr).trim().replace(",", ".");
+  if (trimmed === "") return currentValue;
+  if (/^[+-]\s*\d+(\.\d+)?$/.test(trimmed)) {
+    return Math.round(currentValue + parseFloat(trimmed.replace(/\s/g, "")));
+  }
+  const n = parseFloat(trimmed);
+  return Number.isNaN(n) ? currentValue : Math.round(n);
 }
 
-function wire() {
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      activeTab = btn.dataset.tab;
-      render();
-    });
-  });
+export function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
 
-  byId("pa-atual").addEventListener("change", (e) => {
-    stats.pa.atual = clamp(parseInlineValue(e.target.value, stats.pa.atual), 0, stats.pa.maximo);
-    save();
-  });
-  wireEnterToBlur("pa-atual");
+// ---------------------------------------------------------------------------
+// Regra do Livro do Jogador: um jogador Com a Bola (CaB), se não tiver
+// nenhuma habilidade que diga o contrário, tem o Deslocamento cortado pela
+// metade enquanto estiver com a posse. Esse "máximo efetivo" é usado tanto
+// no painel de edição quanto na bolha do token, e também é o teto usado ao
+// recuperar o Deslocamento em uma Nova Rodada.
+// ---------------------------------------------------------------------------
+export function deslocamentoMaximoEfetivo(stats) {
+  if (stats.posseDeBola) {
+    return Math.max(1, Math.floor(stats.deslocamento.maximo / 2));
+  }
+  return stats.deslocamento.maximo;
+}
 
-  byId("pa-maximo").addEventListener("change", (e) => {
-    stats.pa.maximo = Math.max(0, Math.round(parseInlineValue(e.target.value, stats.pa.maximo)));
-    stats.pa.atual = Math.min(stats.pa.atual, stats.pa.maximo);
-    save();
-  });
-  wireEnterToBlur("pa-maximo");
+// ---------------------------------------------------------------------------
+// Monta o texto (linhas) e a cor do painel a partir das estatísticas atuais.
+// Os textos aqui são deliberadamente curtos (sem os detalhes que aparecem no
+// painel de edição) para não estourar a largura da bolha e cortar linha.
+// ---------------------------------------------------------------------------
+export function buildPanelContent(stats) {
+  const lines = [];
+  const deslocMax = deslocamentoMaximoEfetivo(stats);
+  const deslocSufixo = stats.posseDeBola ? " (1/2)" : "";
 
-  byId("desloc-atual").addEventListener("change", (e) => {
-    const max = deslocamentoMaximoEfetivo(stats);
-    stats.deslocamento.atual = clamp(parseInlineValue(e.target.value, stats.deslocamento.atual), 0, max);
-    save();
-  });
-  wireEnterToBlur("desloc-atual");
+  lines.push(
+    `PA ${stats.pa.atual}/${stats.pa.maximo}   Desloc. ${stats.deslocamento.atual}/${deslocMax}m${deslocSufixo}`
+  );
 
-  byId("desloc-maximo").addEventListener("change", (e) => {
-    stats.deslocamento.maximo = Math.max(
-      0,
-      Math.round(parseInlineValue(e.target.value, stats.deslocamento.maximo))
-    );
-    stats.deslocamento.atual = Math.min(stats.deslocamento.atual, deslocamentoMaximoEfetivo(stats));
-    save();
-  });
-  wireEnterToBlur("desloc-maximo");
+  const pontos = clamp(stats.despertar.pontos, 0, 10);
+  const pips = "●".repeat(pontos) + "○".repeat(10 - pontos);
+  let despertarLine;
+  if (stats.despertar.ativo) {
+    despertarLine = `Despertar ATIVO (${stats.despertar.rodadasRestantes}r)`;
+  } else if (stats.despertar.penalidadeRodadas > 0) {
+    despertarLine = `Despertar -1 atributos (${stats.despertar.penalidadeRodadas}r)`;
+  } else if (stats.despertar.usado) {
+    despertarLine = `Despertar usado`;
+  } else {
+    despertarLine = `Despertar ${pips} ${pontos}/10`;
+  }
+  lines.push(despertarLine);
 
-  const despertarPontosInput = byId("despertar-pontos");
-  if (!despertarPontosInput.disabled) {
-    despertarPontosInput.addEventListener("change", (e) => {
-      stats.despertar.pontos = clamp(parseInlineValue(e.target.value, stats.despertar.pontos), 0, 10);
-      save();
-    });
-    wireEnterToBlur("despertar-pontos");
+  const extras = [];
+  if (stats.posseDeBola) extras.push("Posse de Bola");
+  if (stats.fluxo.ativo) extras.push(`Fluxo ATIVO (${stats.fluxo.rodadasRestantes}r)`);
+  else if (stats.fluxo.exaustaoRodadas > 0)
+    extras.push(`Exaustão do Fluxo (${stats.fluxo.exaustaoRodadas}r)`);
+  if (extras.length) lines.push(extras.join("   "));
+
+  let color = VISUAL.COLOR_NORMAL;
+  if (stats.despertar.ativo || stats.fluxo.ativo) color = VISUAL.COLOR_DESPERTAR;
+  else if (stats.despertar.penalidadeRodadas > 0 || stats.fluxo.exaustaoRodadas > 0)
+    color = VISUAL.COLOR_PENALIDADE;
+
+  return { lines, color };
+}
+
+// ---------------------------------------------------------------------------
+// Regra de "Nova Rodada" (Livro do Jogador, seção Iniciativa):
+// - PA volta ao máximo; Deslocamento volta ao máximo efetivo (considerando
+//   Posse de Bola).
+// - Contadores de duração (Despertar ativo, penalidade, Fluxo ativo,
+//   exaustão do Fluxo) descem 1 e, ao chegarem a 0, desligam o estado.
+// - Quando o Despertar termina naturalmente (rodadas acabam), ele também
+//   fica marcado como "usado" — só pode acontecer 1x por partida.
+// ---------------------------------------------------------------------------
+export function advanceRound(stats) {
+  const next = deepMerge(defaultStats(), stats);
+
+  next.pa.atual = next.pa.maximo;
+  next.deslocamento.atual = deslocamentoMaximoEfetivo(next);
+
+  if (next.despertar.ativo) {
+    next.despertar.rodadasRestantes = Math.max(0, next.despertar.rodadasRestantes - 1);
+    if (next.despertar.rodadasRestantes === 0) {
+      next.despertar.ativo = false;
+      next.despertar.penalidadeRodadas = 3; // -1 em todos atributos por 3 rodadas
+      next.despertar.pontos = 0;
+      next.despertar.usado = true;
+    }
+  } else if (next.despertar.penalidadeRodadas > 0) {
+    next.despertar.penalidadeRodadas -= 1;
   }
 
-  byId("despertar-toggle").addEventListener("click", () => {
-    if (stats.despertar.usado) return;
-    if (stats.despertar.ativo) {
-      stats.despertar.ativo = false;
-      stats.despertar.rodadasRestantes = 0;
-      stats.despertar.penalidadeRodadas = 3;
-      stats.despertar.usado = true;
-    } else if (stats.despertar.pontos >= 10) {
-      stats.despertar.ativo = true;
-      stats.despertar.rodadasRestantes = 5;
-      stats.despertar.pontos = 0;
+  if (next.fluxo.ativo) {
+    next.fluxo.rodadasRestantes = Math.max(0, next.fluxo.rodadasRestantes - 1);
+    if (next.fluxo.rodadasRestantes === 0) {
+      next.fluxo.ativo = false;
+      next.fluxo.exaustaoRodadas = 2; // Desvantagem + -2 fixo por 2 rodadas
     }
-    save();
-  });
+  } else if (next.fluxo.exaustaoRodadas > 0) {
+    next.fluxo.exaustaoRodadas -= 1;
+  }
 
-  byId("despertar-usado").addEventListener("change", (e) => {
-    stats.despertar.usado = e.target.checked;
-    save();
-  });
-
-  byId("fluxo-usado").addEventListener("change", (e) => {
-    stats.fluxo.usado = e.target.checked;
-    save();
-  });
-
-  byId("fluxo-toggle").addEventListener("click", () => {
-    if (stats.fluxo.ativo) {
-      stats.fluxo.ativo = false;
-      stats.fluxo.rodadasRestantes = 0;
-    } else if (!stats.fluxo.usado) {
-      stats.fluxo.ativo = true;
-      stats.fluxo.rodadasRestantes = 5;
-      stats.fluxo.usado = true;
-      stats.pa.atual = Math.max(0, stats.pa.atual - 3);
-    }
-    save();
-  });
-
-  byId("posse-bola").addEventListener("change", (e) => {
-    stats.posseDeBola = e.target.checked;
-    stats.deslocamento.atual = Math.min(stats.deslocamento.atual, deslocamentoMaximoEfetivo(stats));
-    save();
-  });
-
-  byId("nova-rodada").addEventListener("click", () => {
-    stats = advanceRound(stats);
-    save();
-  });
-
-  byId("remover").addEventListener("click", async () => {
-    if (!confirm("Remover as estatísticas de Blue Soccer deste token?")) return;
-    await OBR.scene.items.updateItems([itemId], (items) => {
-      for (const item of items) delete item.metadata[STATS_KEY];
-    });
-    await removePanel(itemId);
-    app.innerHTML = `<p class="loading">Estatísticas removidas. Feche e reabra o menu para recomeçar.</p>`;
-  });
+  return next;
 }
