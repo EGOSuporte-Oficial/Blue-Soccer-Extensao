@@ -13,6 +13,12 @@ export const STATS_KEY = `${ID}/stats`;
 // Serve só pra limpeza de "órfãos" (marcador cujo token foi apagado).
 export const PARENT_KEY = `${ID}/parentId`;
 
+// Chave usada em OBR.player.metadata pra guardar a preferência PESSOAL de
+// cada jogador sobre quais tokens ele não quer ver o marcador compacto.
+// Guarda um array de IDs de token. É por jogador, não sincronizado — cada
+// pessoa na mesa decide por si só, sem afetar o que os outros veem.
+export const HIDDEN_MARKERS_KEY = `${ID}/hiddenMarkers`;
+
 // IDs determinísticos — permitem achar/atualizar sempre o mesmo item, sem
 // precisar guardar referências cruzadas em metadata.
 export function markerIdFor(tokenId) {
@@ -169,8 +175,9 @@ function statusColor(stats) {
 }
 
 // ---------------------------------------------------------------------------
-// MARCADOR (compacto, sincronizado, sempre visível pra mesa inteira):
-// só PA, Deslocamento, e códigos curtos pros estados que merecem atenção.
+// MARCADOR (compacto, local por jogador — cada cliente decide se mostra ou
+// não, via a preferência guardada em OBR.player metadata): só PA,
+// Deslocamento, e códigos curtos pros estados que merecem atenção.
 // ---------------------------------------------------------------------------
 export function buildMarkerContent(stats) {
   // Mostra o máximo BASE (o configurado, sem a redução), não o efetivo —
@@ -179,7 +186,7 @@ export function buildMarkerContent(stats) {
   const deslocSufixo = stats.posseDeBola ? " (1/2)" : "";
 
   const lines = [
-    `PA ${stats.pa.atual}/${stats.pa.maximo}  DES ${stats.deslocamento.atual}/${stats.deslocamento.maximo}m${deslocSufixo}`,
+    `PA ${stats.pa.atual}/${stats.pa.maximo}  |  DES ${stats.deslocamento.atual}/${stats.deslocamento.maximo}m${deslocSufixo}`,
   ];
 
   const tags = [];
