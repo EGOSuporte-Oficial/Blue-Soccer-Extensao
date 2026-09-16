@@ -124,6 +124,22 @@ h1 {
   color: var(--text-dim);
 }
 
+/* Par "input + legenda" empilhado, usado no PA e Deslocamento para deixar
+   claro qual campo é Atual e qual é Máximo. */
+.field-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.field-col-label {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
 input[type="text"],
 input[type="number"] {
   background: #14151a;
@@ -140,6 +156,10 @@ input[type="text"]:focus,
 input[type="number"]:focus {
   outline: 2px solid var(--desloc);
   outline-offset: 0;
+}
+
+input:disabled {
+  opacity: 0.4;
 }
 
 .slash {
