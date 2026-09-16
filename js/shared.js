@@ -9,29 +9,42 @@ export const ID = "com.egoblue.bluesoccer";
 // Chave de metadata onde guardamos os dados de jogo no próprio token.
 export const STATS_KEY = `${ID}/stats`;
 
-// Chave de metadata gravada na bolha, apontando de volta pro token-dono.
-// Serve só pra limpeza de "órfãs" (bolha cujo token foi apagado).
+// Chave de metadata gravada no marcador, apontando de volta pro token-dono.
+// Serve só pra limpeza de "órfãos" (marcador cujo token foi apagado).
 export const PARENT_KEY = `${ID}/parentId`;
 
-// ID determinístico da bolha de um token — permite achar/atualizar o mesmo
-// item sempre, sem precisar guardar referências cruzadas em metadata.
-export function panelIdFor(tokenId) {
-  return `${ID}/panel/${tokenId}`;
+// IDs determinísticos — permitem achar/atualizar sempre o mesmo item, sem
+// precisar guardar referências cruzadas em metadata.
+export function markerIdFor(tokenId) {
+  return `${ID}/marker/${tokenId}`;
+}
+export function detailIdFor(tokenId) {
+  return `${ID}/detail/${tokenId}`;
 }
 
 // ---------------------------------------------------------------------------
-// Ajustes visuais — mexa aqui se o painel ficar grande/pequeno/deslocado
-// demais em relação aos tokens da sua mesa.
+// Ajustes visuais.
+//
+// MARCADOR: item sincronizado (OBR.scene.items), visível pra mesa inteira o
+// tempo todo — por isso fica pequeno e só com o essencial.
+//
+// DETALHE: item LOCAL (OBR.scene.local) — só existe no cliente de quem
+// selecionou aquele token, some quando desseleciona. Pode ser mais completo
+// porque não fica poluindo a tela de ninguém além de quem pediu.
 // ---------------------------------------------------------------------------
 export const VISUAL = {
-  OFFSET_Y_GRID: 0.85, // deslocamento vertical (múltiplos do DPI do grid)
-  PANEL_WIDTH: 200, // px de tela
+  OFFSET_Y_GRID: 0.85, // unidade-base de deslocamento vertical (múltiplos do DPI do grid);
+  // o marcador usa essa unidade abaixo do token, o detalhe usa um múltiplo
+  // maior dela acima do token (ver offsetSign em panel.js) — assim os dois
+  // nunca se sobrepõem.
+  MARKER_WIDTH: 150, // px de tela
+  DETAIL_WIDTH: 210, // px de tela
   PANEL_HEIGHT_PER_LINE: 22, // px de tela por linha de texto
   PANEL_PADDING: 8, // px de tela
   FONT_SIZE: 13, // px de tela
   CORNER_RADIUS: 10,
   COLOR_NORMAL: "#17365c", // azul-marinho (Blue Soccer)
-  COLOR_DESPERTAR: "#caa53d", // dourado — Despertar ativo
+  COLOR_DESPERTAR: "#caa53d", // dourado — Despertar/Fluxo ativo
   COLOR_PENALIDADE: "#5c2323", // vermelho escuro — penalidade pós-Despertar/Fluxo
   TEXT_COLOR: "#f4f6fb",
 };
@@ -88,9 +101,9 @@ export function getStats(item) {
 }
 
 // ---------------------------------------------------------------------------
-// Parser de expressões rápidas, no estilo da Stat Bubbles for D&D:
-// digitar "+2" soma ao valor atual, "-1" subtrai, e um número "puro"
-// substitui o valor. Sempre arredonda pro inteiro mais próximo.
+// Parser de expressões rápidas: digitar "+2" soma ao valor atual, "-1"
+// subtrai, e um número "puro" substitui o valor. Sempre arredonda pro
+// inteiro mais próximo.
 // ---------------------------------------------------------------------------
 export function parseInlineValue(inputStr, currentValue) {
   const trimmed = String(inputStr).trim().replace(",", ".");
@@ -109,9 +122,7 @@ export function clamp(value, min, max) {
 // ---------------------------------------------------------------------------
 // Regra do Livro do Jogador: um jogador Com a Bola (CaB), se não tiver
 // nenhuma habilidade que diga o contrário, tem o Deslocamento cortado pela
-// metade enquanto estiver com a posse. Esse "máximo efetivo" é usado tanto
-// no painel de edição quanto na bolha do token, e também é o teto usado ao
-// recuperar o Deslocamento em uma Nova Rodada.
+// metade enquanto estiver com a posse.
 // ---------------------------------------------------------------------------
 export function deslocamentoMaximoEfetivo(stats) {
   if (stats.posseDeBola) {
@@ -121,46 +132,103 @@ export function deslocamentoMaximoEfetivo(stats) {
 }
 
 // ---------------------------------------------------------------------------
-// Monta o texto (linhas) e a cor do painel a partir das estatísticas atuais.
-// Os textos aqui são deliberadamente curtos (sem os detalhes que aparecem no
-// painel de edição) para não estourar a largura da bolha e cortar linha.
+// Quebra de linha manual, baseada numa largura de caractere aproximada.
+// Isso existe pra que a altura do painel (calculada como linhas × altura-
+// por-linha) sempre bata com o que realmente aparece na tela — antes, uma
+// linha comprida podia quebrar visualmente sem o painel crescer junto,
+// cortando o texto.
 // ---------------------------------------------------------------------------
-export function buildPanelContent(stats) {
-  const lines = [];
-  const deslocMax = deslocamentoMaximoEfetivo(stats);
+function wrapToWidth(text, width) {
+  const maxChars = Math.max(6, Math.floor((width - VISUAL.PANEL_PADDING * 2) / 7.2));
+  if (text.length <= maxChars) return [text];
+  const words = text.split(" ");
+  const out = [];
+  let cur = "";
+  for (const w of words) {
+    const test = cur ? `${cur} ${w}` : w;
+    if (test.length > maxChars && cur) {
+      out.push(cur);
+      cur = w;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function wrapLines(lines, width) {
+  return lines.flatMap((line) => wrapToWidth(line, width));
+}
+
+function statusColor(stats) {
+  if (stats.despertar.ativo || stats.fluxo.ativo) return VISUAL.COLOR_DESPERTAR;
+  if (stats.despertar.penalidadeRodadas > 0 || stats.fluxo.exaustaoRodadas > 0)
+    return VISUAL.COLOR_PENALIDADE;
+  return VISUAL.COLOR_NORMAL;
+}
+
+// ---------------------------------------------------------------------------
+// MARCADOR (compacto, sincronizado, sempre visível pra mesa inteira):
+// só PA, Deslocamento, e códigos curtos pros estados que merecem atenção.
+// ---------------------------------------------------------------------------
+export function buildMarkerContent(stats) {
+  // Mostra o máximo BASE (o configurado, sem a redução), não o efetivo —
+  // senão o número de máximo "some" e parece que o atual caiu sozinho.
+  // O "(1/2)" avisa que a posse de bola está reduzindo o efetivo agora.
   const deslocSufixo = stats.posseDeBola ? " (1/2)" : "";
 
-  lines.push(
-    `PA ${stats.pa.atual}/${stats.pa.maximo}   Desloc. ${stats.deslocamento.atual}/${deslocMax}m${deslocSufixo}`
-  );
+  const lines = [
+    `PA ${stats.pa.atual}/${stats.pa.maximo}  DES ${stats.deslocamento.atual}/${stats.deslocamento.maximo}m${deslocSufixo}`,
+  ];
+
+  const tags = [];
+  if (stats.despertar.ativo) tags.push("DESPERTAR");
+  else if (stats.despertar.penalidadeRodadas > 0) tags.push("PENALIDADE");
+  if (stats.fluxo.ativo) tags.push("FLUXO");
+  else if (stats.fluxo.exaustaoRodadas > 0) tags.push("EXAUSTAO");
+  if (stats.posseDeBola) tags.push("BOLA");
+  if (tags.length) lines.push(tags.join(" · "));
+
+  return { lines: wrapLines(lines, VISUAL.MARKER_WIDTH), color: statusColor(stats) };
+}
+
+// ---------------------------------------------------------------------------
+// DETALHE (completo, local — só pra quem selecionou o token): a leitura
+// cheia, com pips de Despertar e status de rodadas.
+// ---------------------------------------------------------------------------
+export function buildDetailContent(stats) {
+  const lines = [];
+  // Mesma lógica do marcador: mostra o máximo BASE, com um aviso à parte
+  // sobre a redução — o atual continua sendo o valor real, já limitado.
+  const deslocSufixo = stats.posseDeBola ? " (reduzido a metade — posse de bola)" : "";
+
+  lines.push(`PA ${stats.pa.atual}/${stats.pa.maximo}`);
+  lines.push(`Deslocamento ${stats.deslocamento.atual}/${stats.deslocamento.maximo}m${deslocSufixo}`);
 
   const pontos = clamp(stats.despertar.pontos, 0, 10);
   const pips = "●".repeat(pontos) + "○".repeat(10 - pontos);
-  let despertarLine;
   if (stats.despertar.ativo) {
-    despertarLine = `Despertar ATIVO (${stats.despertar.rodadasRestantes}r)`;
+    lines.push(`Despertar ATIVO — ${stats.despertar.rodadasRestantes} rodada(s) restante(s)`);
   } else if (stats.despertar.penalidadeRodadas > 0) {
-    despertarLine = `Despertar -1 atributos (${stats.despertar.penalidadeRodadas}r)`;
+    lines.push(`Despertar: -1 atributos — ${stats.despertar.penalidadeRodadas} rodada(s)`);
   } else if (stats.despertar.usado) {
-    despertarLine = `Despertar usado`;
+    lines.push(`Despertar usado nesta partida`);
   } else {
-    despertarLine = `Despertar ${pips} ${pontos}/10`;
+    lines.push(`Despertar ${pips} ${pontos}/10`);
   }
-  lines.push(despertarLine);
 
-  const extras = [];
-  if (stats.posseDeBola) extras.push("Posse de Bola");
-  if (stats.fluxo.ativo) extras.push(`Fluxo ATIVO (${stats.fluxo.rodadasRestantes}r)`);
-  else if (stats.fluxo.exaustaoRodadas > 0)
-    extras.push(`Exaustão do Fluxo (${stats.fluxo.exaustaoRodadas}r)`);
-  if (extras.length) lines.push(extras.join("   "));
+  if (stats.fluxo.ativo) {
+    lines.push(`Fluxo ATIVO — ${stats.fluxo.rodadasRestantes} rodada(s) restante(s)`);
+  } else if (stats.fluxo.exaustaoRodadas > 0) {
+    lines.push(`Exaustao do Fluxo — ${stats.fluxo.exaustaoRodadas} rodada(s)`);
+  } else if (stats.fluxo.usado) {
+    lines.push(`Fluxo usado nesta partida`);
+  }
 
-  let color = VISUAL.COLOR_NORMAL;
-  if (stats.despertar.ativo || stats.fluxo.ativo) color = VISUAL.COLOR_DESPERTAR;
-  else if (stats.despertar.penalidadeRodadas > 0 || stats.fluxo.exaustaoRodadas > 0)
-    color = VISUAL.COLOR_PENALIDADE;
+  if (stats.posseDeBola) lines.push(`Posse de Bola`);
 
-  return { lines, color };
+  return { lines: wrapLines(lines, VISUAL.DETAIL_WIDTH), color: statusColor(stats) };
 }
 
 // ---------------------------------------------------------------------------
