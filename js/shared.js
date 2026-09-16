@@ -122,12 +122,13 @@ export function deslocamentoMaximoEfetivo(stats) {
 
 // ---------------------------------------------------------------------------
 // Monta o texto (linhas) e a cor do painel a partir das estatísticas atuais.
-// Mantido separado da geometria/SDK para poder ser testado isoladamente.
+// Os textos aqui são deliberadamente curtos (sem os detalhes que aparecem no
+// painel de edição) para não estourar a largura da bolha e cortar linha.
 // ---------------------------------------------------------------------------
 export function buildPanelContent(stats) {
   const lines = [];
   const deslocMax = deslocamentoMaximoEfetivo(stats);
-  const deslocSufixo = stats.posseDeBola ? " (½)" : "";
+  const deslocSufixo = stats.posseDeBola ? " (1/2)" : "";
 
   lines.push(
     `PA ${stats.pa.atual}/${stats.pa.maximo}   Desloc. ${stats.deslocamento.atual}/${deslocMax}m${deslocSufixo}`
@@ -137,18 +138,18 @@ export function buildPanelContent(stats) {
   const pips = "●".repeat(pontos) + "○".repeat(10 - pontos);
   let despertarLine;
   if (stats.despertar.ativo) {
-    despertarLine = `Despertar ⚡ ATIVO (${stats.despertar.rodadasRestantes}r)`;
+    despertarLine = `Despertar ATIVO (${stats.despertar.rodadasRestantes}r)`;
   } else if (stats.despertar.penalidadeRodadas > 0) {
-    despertarLine = `Despertar ⚠ -1 atributos (${stats.despertar.penalidadeRodadas}r)`;
+    despertarLine = `Despertar -1 atributos (${stats.despertar.penalidadeRodadas}r)`;
   } else if (stats.despertar.usado) {
-    despertarLine = `Despertar (já usado nesta partida)`;
+    despertarLine = `Despertar usado`;
   } else {
     despertarLine = `Despertar ${pips} ${pontos}/10`;
   }
   lines.push(despertarLine);
 
   const extras = [];
-  if (stats.posseDeBola) extras.push("⚽ Posse de Bola");
+  if (stats.posseDeBola) extras.push("Posse de Bola");
   if (stats.fluxo.ativo) extras.push(`Fluxo ATIVO (${stats.fluxo.rodadasRestantes}r)`);
   else if (stats.fluxo.exaustaoRodadas > 0)
     extras.push(`Exaustão do Fluxo (${stats.fluxo.exaustaoRodadas}r)`);
