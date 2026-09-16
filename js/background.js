@@ -1,6 +1,8 @@
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3";
 import { ID, PARENT_KEY } from "./shared.js";
 
+const BASE_URL = "https://egosuporte-oficial.github.io/Blue-Soccer-Extensao";
+
 OBR.onReady(async () => {
   setupContextMenu();
   setupOrphanCleanup();
@@ -10,13 +12,19 @@ OBR.onReady(async () => {
 // Menu de contexto: aparece ao clicar com o botão direito em um token nas
 // camadas de Personagem, Montaria ou Item (as mesmas que a Stat Bubbles for
 // D&D usa). Abre o popover do editor, ancorado no próprio ícone clicado.
+//
+// Observação: a Owlbear Rodeo não resolve caminho relativo nem absoluto
+// (tipo "/icons/stats.svg") do jeito que um navegador resolveria — ela só
+// concatena o domínio puro com o texto do caminho. Por isso o ícone e a
+// URL do popover aqui usam o link completo (BASE_URL), em vez de caminho
+// relativo como os outros arquivos .html usam entre si.
 // ---------------------------------------------------------------------------
 function setupContextMenu() {
   OBR.contextMenu.create({
     id: `${ID}/context-menu`,
     icons: [
       {
-        icon: "icons/stats.svg",
+        icon: `${BASE_URL}/icons/stats.svg`,
         label: "Editar Estatísticas",
         filter: {
           every: [
@@ -32,7 +40,7 @@ function setupContextMenu() {
       if (!item) return;
       OBR.popover.open({
         id: `${ID}/editor`,
-        url: `editor.html?id=${encodeURIComponent(item.id)}`,
+        url: `${BASE_URL}/editor.html?id=${encodeURIComponent(item.id)}`,
         height: 480,
         width: 300,
         anchorElementId: elementId,
