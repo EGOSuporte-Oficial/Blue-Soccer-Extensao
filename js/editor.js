@@ -2,6 +2,7 @@ import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3";
 import {
   getStats,
   STATS_KEY,
+  HIDDEN_MARKERS_KEY,
   parseInlineValue,
   clamp,
   advanceRound,
@@ -15,6 +16,7 @@ const itemId = new URLSearchParams(location.search).get("id");
 let stats = null;
 let role = "PLAYER";
 let activeTab = "stats"; // "stats" | "acoes"
+let markerHidden = false; // preferência PESSOAL deste jogador pra este token
 
 OBR.onReady(init);
 
@@ -32,6 +34,10 @@ async function init() {
   }
 
   stats = getStats(item);
+
+  const metadata = await OBR.player.getMetadata();
+  const hiddenArr = metadata?.[HIDDEN_MARKERS_KEY];
+  markerHidden = Array.isArray(hiddenArr) && hiddenArr.includes(itemId);
 
   if (role !== "GM" && !stats.visivelParaJogadores) {
     app.innerHTML = `
@@ -174,6 +180,15 @@ function template(s) {
   `;
 
   const acoesTab = `
+    <div class="card">
+      <div class="card-title">Marcador no mapa</div>
+      <div class="row split">
+        <button id="marcador-mostrar" class="${!markerHidden ? "toggle-active" : ""}" ${!markerHidden ? "disabled" : ""}>Mostrar Sempre</button>
+        <button id="marcador-ocultar" class="${markerHidden ? "toggle-active" : ""}" ${markerHidden ? "disabled" : ""}>Não Aparecer</button>
+      </div>
+      <p class="hint">Essa preferência é só sua — os outros jogadores continuam vendo (ou não) o marcador deste token de acordo com a preferência de cada um.</p>
+    </div>
+
     <button class="round" id="nova-rodada">Nova Rodada — recupera PA e Deslocamento</button>
     <button class="link-btn" id="remover">Remover estatísticas deste token</button>
   `;
@@ -211,6 +226,22 @@ async function save() {
   });
   await renderMarker(itemId);
   await refreshDetailIfVisible(itemId);
+  render();
+}
+
+async function setMarkerHidden(hide) {
+  const metadata = await OBR.player.getMetadata();
+  const current = Array.isArray(metadata?.[HIDDEN_MARKERS_KEY]) ? metadata[HIDDEN_MARKERS_KEY] : [];
+  const next = hide
+    ? Array.from(new Set([...current, itemId]))
+    : current.filter((id) => id !== itemId);
+  await OBR.player.setMetadata({ [HIDDEN_MARKERS_KEY]: next });
+  markerHidden = hide;
+  if (hide) {
+    await removeMarker(itemId);
+  } else {
+    await renderMarker(itemId);
+  }
   render();
 }
 
@@ -319,6 +350,9 @@ function wire() {
     stats = advanceRound(stats);
     save();
   });
+
+  byId("marcador-mostrar").addEventListener("click", () => setMarkerHidden(false));
+  byId("marcador-ocultar").addEventListener("click", () => setMarkerHidden(true));
 
   byId("remover").addEventListener("click", async () => {
     if (!confirm("Remover as estatísticas de Blue Soccer deste token?")) return;
