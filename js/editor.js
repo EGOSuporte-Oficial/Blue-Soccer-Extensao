@@ -1,5 +1,12 @@
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3";
-import { getStats, STATS_KEY, parseInlineValue, clamp, advanceRound } from "./shared.js";
+import {
+  getStats,
+  STATS_KEY,
+  parseInlineValue,
+  clamp,
+  advanceRound,
+  deslocamentoMaximoEfetivo,
+} from "./shared.js";
 import { renderPanel, removePanel } from "./panel.js";
 
 const app = document.getElementById("app");
@@ -47,17 +54,26 @@ function render() {
   wire();
 }
 
-function template(s, role) {
-  const despertarBtnLabel = s.despertar.ativo
+function template(s) {
+  const deslocMax = deslocamentoMaximoEfetivo(s);
+
+  const despertarUsado = s.despertar.usado;
+  const despertarBtnLabel = despertarUsado
+    ? "Despertar já usado"
+    : s.despertar.ativo
     ? "Desativar Despertar"
     : s.despertar.pontos >= 10
     ? "Ativar Despertar"
     : `Ativar Despertar (${s.despertar.pontos}/10)`;
-  const despertarBtnDisabled = !s.despertar.ativo && s.despertar.pontos < 10 ? "disabled" : "";
+  const despertarBtnDisabled =
+    despertarUsado || (!s.despertar.ativo && s.despertar.pontos < 10) ? "disabled" : "";
+  const despertarPontosDisabled = despertarUsado ? "disabled" : "";
   const despertarStatus = s.despertar.ativo
     ? `⚡ Ativo — ${s.despertar.rodadasRestantes} rodada(s) restante(s)`
     : s.despertar.penalidadeRodadas > 0
     ? `⚠ Penalidade -1 em atributos — ${s.despertar.penalidadeRodadas} rodada(s)`
+    : despertarUsado
+    ? "Já usado nesta partida"
     : "";
 
   const fluxoBtnLabel = s.fluxo.ativo
@@ -70,24 +86,9 @@ function template(s, role) {
     ? `Ativo — ${s.fluxo.rodadasRestantes} rodada(s) restante(s)`
     : s.fluxo.exaustaoRodadas > 0
     ? `Exaustão (Desvantagem, -2 fixo) — ${s.fluxo.exaustaoRodadas} rodada(s)`
+    : s.fluxo.usado
+    ? "Já usado nesta partida"
     : "";
-
-  const gmSection =
-    role === "GM"
-      ? `
-    <hr />
-    <div class="card gm-only">
-      <div class="card-title">Mestre</div>
-      <label class="checkbox">
-        <input type="checkbox" id="visivel-jogadores" ${s.visivelParaJogadores ? "checked" : ""} />
-        Visível/editável pelos jogadores
-      </label>
-      <p class="hint">
-        Se desmarcado, só o Mestre vê e edita — jogadores não veem nem a bolha
-        no token nem este painel para este token.
-      </p>
-    </div>`
-      : "";
 
   return `
     <h1>Editar Estatísticas</h1>
@@ -95,36 +96,55 @@ function template(s, role) {
 
     <div class="card">
       <div class="card-title"><span class="dot pa"></span>Pontos de Ação</div>
-      <div class="row split">
-        <div class="field">
+      <div class="row">
+        <div class="field-col">
           <input type="text" id="pa-atual" value="${s.pa.atual}" inputmode="numeric" />
-          <span class="slash">/</span>
-          <input type="number" id="pa-maximo" min="0" value="${s.pa.maximo}" />
+          <span class="field-col-label">Atual</span>
+        </div>
+        <span class="slash">/</span>
+        <div class="field-col">
+          <input type="text" id="pa-maximo" value="${s.pa.maximo}" inputmode="numeric" />
+          <span class="field-col-label">Máximo</span>
         </div>
       </div>
     </div>
 
     <div class="card">
       <div class="card-title"><span class="dot desloc"></span>Deslocamento (metros)</div>
-      <div class="row split">
-        <div class="field">
+      <div class="row">
+        <div class="field-col">
           <input type="text" id="desloc-atual" value="${s.deslocamento.atual}" inputmode="numeric" />
-          <span class="slash">/</span>
-          <input type="number" id="desloc-maximo" min="0" value="${s.deslocamento.maximo}" />
+          <span class="field-col-label">Atual</span>
+        </div>
+        <span class="slash">/</span>
+        <div class="field-col">
+          <input type="text" id="desloc-maximo" value="${s.deslocamento.maximo}" inputmode="numeric" />
+          <span class="field-col-label">Máximo</span>
         </div>
       </div>
+      ${
+        s.posseDeBola
+          ? `<p class="hint">⚠ Com a bola: deslocamento efetivo agora é <strong>${deslocMax}m</strong> (metade do máximo), a menos que uma habilidade diga o contrário.</p>`
+          : ""
+      }
     </div>
 
     <div class="card">
       <div class="card-title"><span class="dot despertar"></span>Pontos de Despertar</div>
       <div class="row split">
         <div class="field">
-          <input type="text" id="despertar-pontos" value="${s.despertar.pontos}" inputmode="numeric" />
+          <input type="text" id="despertar-pontos" value="${s.despertar.pontos}" inputmode="numeric" ${despertarPontosDisabled} />
           <span class="slash">/ 10</span>
         </div>
         <button id="despertar-toggle" ${despertarBtnDisabled}>${despertarBtnLabel}</button>
       </div>
       <div class="pips">${pips(s.despertar.pontos)}</div>
+      <div class="row split">
+        <label class="checkbox">
+          <input type="checkbox" id="despertar-usado" ${s.despertar.usado ? "checked" : ""} />
+          Já usado nesta partida
+        </label>
+      </div>
       <div class="status-line ${s.despertar.ativo ? "active" : ""}">${despertarStatus}</div>
     </div>
 
@@ -145,26 +165,33 @@ function template(s, role) {
         <input type="checkbox" id="posse-bola" ${s.posseDeBola ? "checked" : ""} />
         ⚽ Posse de Bola
       </label>
+      <p class="hint">Enquanto estiver com a bola, o Deslocamento fica pela metade (a menos que uma habilidade diga o contrário).</p>
     </div>
 
     <button class="round" id="nova-rodada">Nova Rodada — recupera PA e Deslocamento</button>
 
-    ${gmSection}
-
     <p class="hint">
-      Dica: nos campos de PA, Deslocamento e Despertar, digite
-      <strong>+2</strong> ou <strong>-1</strong> e aperte Enter (ou saia do
-      campo) para somar/subtrair rápido — como na Stat Bubbles for D&amp;D.
+      Dica: em qualquer campo de número (PA, Deslocamento ou Despertar —
+      atual ou máximo), digite <strong>+2</strong> ou <strong>-1</strong> e
+      aperte Enter (ou saia do campo) para somar/subtrair rápido — como na
+      Stat Bubbles for D&amp;D.
     </p>
 
     <button class="link-btn" id="remover">Remover estatísticas deste token</button>
   `;
 }
 
+// ---------------------------------------------------------------------------
+// IMPORTANTE: sempre grava uma cópia "limpa" (JSON) do objeto de estatísticas,
+// nunca o objeto em si. A Owlbear Rodeo processa o valor gravado internamente
+// e pode deixá-lo somente-leitura depois — se a gente entregasse o mesmo
+// objeto que continua em uso aqui no editor, qualquer edição seguinte falhava
+// silenciosamente (era exatamente o bug de "só a primeira mudança funciona").
+// ---------------------------------------------------------------------------
 async function save() {
   await OBR.scene.items.updateItems([itemId], (items) => {
     for (const item of items) {
-      item.metadata[STATS_KEY] = stats;
+      item.metadata[STATS_KEY] = JSON.parse(JSON.stringify(stats));
     }
   });
   await renderPanel(itemId);
@@ -183,42 +210,61 @@ function wireEnterToBlur(id) {
 
 function wire() {
   byId("pa-atual").addEventListener("change", (e) => {
-    stats.pa.atual = Math.max(0, parseInlineValue(e.target.value, stats.pa.atual));
+    stats.pa.atual = clamp(parseInlineValue(e.target.value, stats.pa.atual), 0, stats.pa.maximo);
     save();
   });
   wireEnterToBlur("pa-atual");
 
   byId("pa-maximo").addEventListener("change", (e) => {
-    stats.pa.maximo = Math.max(0, Math.round(Number(e.target.value) || 0));
+    stats.pa.maximo = Math.max(0, Math.round(parseInlineValue(e.target.value, stats.pa.maximo)));
+    stats.pa.atual = Math.min(stats.pa.atual, stats.pa.maximo);
     save();
   });
+  wireEnterToBlur("pa-maximo");
 
   byId("desloc-atual").addEventListener("change", (e) => {
-    stats.deslocamento.atual = Math.max(0, parseInlineValue(e.target.value, stats.deslocamento.atual));
+    const max = deslocamentoMaximoEfetivo(stats);
+    stats.deslocamento.atual = clamp(parseInlineValue(e.target.value, stats.deslocamento.atual), 0, max);
     save();
   });
   wireEnterToBlur("desloc-atual");
 
   byId("desloc-maximo").addEventListener("change", (e) => {
-    stats.deslocamento.maximo = Math.max(0, Math.round(Number(e.target.value) || 0));
+    stats.deslocamento.maximo = Math.max(
+      0,
+      Math.round(parseInlineValue(e.target.value, stats.deslocamento.maximo))
+    );
+    stats.deslocamento.atual = Math.min(stats.deslocamento.atual, deslocamentoMaximoEfetivo(stats));
     save();
   });
+  wireEnterToBlur("desloc-maximo");
 
-  byId("despertar-pontos").addEventListener("change", (e) => {
-    stats.despertar.pontos = clamp(parseInlineValue(e.target.value, stats.despertar.pontos), 0, 10);
-    save();
-  });
-  wireEnterToBlur("despertar-pontos");
+  const despertarPontosInput = byId("despertar-pontos");
+  if (!despertarPontosInput.disabled) {
+    despertarPontosInput.addEventListener("change", (e) => {
+      stats.despertar.pontos = clamp(parseInlineValue(e.target.value, stats.despertar.pontos), 0, 10);
+      save();
+    });
+    wireEnterToBlur("despertar-pontos");
+  }
 
   byId("despertar-toggle").addEventListener("click", () => {
+    if (stats.despertar.usado) return;
     if (stats.despertar.ativo) {
       stats.despertar.ativo = false;
       stats.despertar.rodadasRestantes = 0;
+      stats.despertar.penalidadeRodadas = 3;
+      stats.despertar.usado = true;
     } else if (stats.despertar.pontos >= 10) {
       stats.despertar.ativo = true;
       stats.despertar.rodadasRestantes = 5;
       stats.despertar.pontos = 0;
     }
+    save();
+  });
+
+  byId("despertar-usado").addEventListener("change", (e) => {
+    stats.despertar.usado = e.target.checked;
     save();
   });
 
@@ -242,6 +288,7 @@ function wire() {
 
   byId("posse-bola").addEventListener("change", (e) => {
     stats.posseDeBola = e.target.checked;
+    stats.deslocamento.atual = Math.min(stats.deslocamento.atual, deslocamentoMaximoEfetivo(stats));
     save();
   });
 
@@ -249,14 +296,6 @@ function wire() {
     stats = advanceRound(stats);
     save();
   });
-
-  const visivel = byId("visivel-jogadores");
-  if (visivel) {
-    visivel.addEventListener("change", (e) => {
-      stats.visivelParaJogadores = e.target.checked;
-      save();
-    });
-  }
 
   byId("remover").addEventListener("click", async () => {
     if (!confirm("Remover as estatísticas de Blue Soccer deste token?")) return;
