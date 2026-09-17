@@ -224,7 +224,11 @@ async function save() {
       item.metadata[STATS_KEY] = JSON.parse(JSON.stringify(stats));
     }
   });
-  await renderMarker(itemId);
+  if (markerHidden) {
+    await removeMarker(itemId);
+  } else {
+    await renderMarker(itemId);
+  }
   await refreshDetailIfVisible(itemId);
   render();
 }
