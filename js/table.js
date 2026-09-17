@@ -142,7 +142,13 @@ async function focusToken(tokenId) {
   if (!item) return;
 
   try {
-    await OBR.viewport.animateTo({ position: item.position });
+    const dpi = await OBR.scene.grid.getDpi();
+    const half = dpi * 0.75; // aproxima o "raio" de um token padrão
+    const bounds = {
+      min: { x: item.position.x - half, y: item.position.y - half },
+      max: { x: item.position.x + half, y: item.position.y + half },
+    };
+    await OBR.viewport.animateToBounds(bounds);
   } catch {
     // segue o jogo sem o movimento de câmera.
   }
