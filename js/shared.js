@@ -49,10 +49,12 @@ export const VISUAL = {
   PANEL_PADDING: 6, // px de tela
   FONT_SIZE: 12, // px de tela
   CORNER_RADIUS: 8,
-  COLOR_NORMAL: "#17365c", // azul-marinho (Blue Soccer)
-  COLOR_DESPERTAR: "#caa53d", // dourado — Despertar/Fluxo ativo
-  COLOR_PENALIDADE: "#5c2323", // vermelho escuro — penalidade pós-Despertar/Fluxo
-  TEXT_COLOR: "#f4f6fb",
+  // Paleta do E.G.O.
+  COLOR_NORMAL: "#0C1320", // panel-dark — discreto, tema escuro do E.G.O.
+  COLOR_ATIVO: "#00D4FF", // cyan — Despertar/Fluxo ativos, "acende" a bolha
+  COLOR_PENALIDADE: "#4a1f24", // vermelho escuro — penalidade pós-Despertar/Fluxo
+  TEXT_COLOR: "#F5FAFF", // white
+  TEXT_ON_ATIVO: "#090B12", // background — texto escuro sobre o ciano brilhante
 };
 
 // ---------------------------------------------------------------------------
@@ -167,11 +169,14 @@ function wrapLines(lines, width) {
   return lines.flatMap((line) => wrapToWidth(line, width));
 }
 
-function statusColor(stats) {
-  if (stats.despertar.ativo || stats.fluxo.ativo) return VISUAL.COLOR_DESPERTAR;
-  if (stats.despertar.penalidadeRodadas > 0 || stats.fluxo.exaustaoRodadas > 0)
-    return VISUAL.COLOR_PENALIDADE;
-  return VISUAL.COLOR_NORMAL;
+function statusColors(stats) {
+  if (stats.despertar.ativo || stats.fluxo.ativo) {
+    return { bg: VISUAL.COLOR_ATIVO, text: VISUAL.TEXT_ON_ATIVO };
+  }
+  if (stats.despertar.penalidadeRodadas > 0 || stats.fluxo.exaustaoRodadas > 0) {
+    return { bg: VISUAL.COLOR_PENALIDADE, text: VISUAL.TEXT_COLOR };
+  }
+  return { bg: VISUAL.COLOR_NORMAL, text: VISUAL.TEXT_COLOR };
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +202,8 @@ export function buildMarkerContent(stats) {
   if (stats.posseDeBola) tags.push("BOLA");
   if (tags.length) lines.push(tags.join(" · "));
 
-  return { lines: wrapLines(lines, VISUAL.MARKER_WIDTH), color: statusColor(stats) };
+  const { bg, text } = statusColors(stats);
+  return { lines: wrapLines(lines, VISUAL.MARKER_WIDTH), color: bg, textColor: text };
 }
 
 // ---------------------------------------------------------------------------
@@ -240,7 +246,8 @@ export function buildDetailContent(stats) {
 
   if (stats.posseDeBola) lines.push(`Posse de Bola`);
 
-  return { lines: wrapLines(lines, VISUAL.DETAIL_WIDTH), color: statusColor(stats) };
+  const { bg, text } = statusColors(stats);
+  return { lines: wrapLines(lines, VISUAL.DETAIL_WIDTH), color: bg, textColor: text };
 }
 
 // ---------------------------------------------------------------------------
