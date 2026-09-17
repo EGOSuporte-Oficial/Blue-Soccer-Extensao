@@ -1,16 +1,42 @@
 :root {
   color-scheme: dark;
-  --bg: #1c1e24;
-  --bg-panel: #24262e;
-  --border: #34363f;
-  --text: #e7e9ee;
-  --text-dim: #9aa0ac;
-  --pa: #3ecf76;
-  --desloc: #4ea1ff;
+
+  /* Paleta oficial do E.G.O. */
+  --background: #090b12;
+  --panel: #111827;
+  --panel-dark: #0c1320;
+
+  --cyan: #00d4ff;
+  --cyan-soft: rgba(0, 212, 255, 0.2);
+
+  --blue: #1c3f95;
+
+  --white: #f5faff;
+  --gray: #788397;
+  --gray-light: #9aa5b9;
+  --gray-dark: #3a4354;
+
+  /* Fontes do E.G.O. */
+  --font-title: "Orbitron", sans-serif;
+  --font-ui: "Oxanium", sans-serif;
+  --font-text: "Exo 2", sans-serif;
+
+  /* Aliases usados pelo resto deste arquivo */
+  --bg: var(--background);
+  --bg-panel: var(--panel);
+  --bg-input: var(--panel-dark);
+  --border: var(--gray-dark);
+  --text: var(--white);
+  --text-dim: var(--gray-light);
+  --accent: var(--cyan);
+  --accent-soft: var(--cyan-soft);
+
+  --pa: var(--cyan);
+  --desloc: var(--blue);
   --despertar: #e0b93d;
   --fluxo: #34c6c6;
   --danger: #e0605a;
-  --radius: 10px;
+  --radius: 8px;
 }
 
 * {
@@ -21,8 +47,8 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  font-size: 13px;
+  font-family: var(--font-text);
+  font-size: 12px;
 }
 
 #app {
@@ -37,6 +63,7 @@ body {
   color: var(--text-dim);
   text-align: center;
   padding: 24px 0;
+  font-family: var(--font-ui);
 }
 
 .locked {
@@ -48,19 +75,25 @@ body {
 
 .locked strong {
   color: var(--text);
+  font-family: var(--font-title);
 }
 
 h1 {
+  font-family: var(--font-title);
   font-size: 13px;
   font-weight: 700;
+  color: var(--accent);
   margin: 0 0 2px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }
 
 .subtitle {
-  font-size: 11px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
   color: var(--text-dim);
   margin: 0 0 4px;
+  letter-spacing: 0.3px;
 }
 
 .tabs {
@@ -71,24 +104,26 @@ h1 {
 
 .tab-btn {
   flex: 1;
+  font-family: var(--font-ui);
   background: none;
   border: none;
   border-radius: 6px 6px 0 0;
   color: var(--text-dim);
   padding: 6px 8px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
+  letter-spacing: 0.3px;
   cursor: pointer;
 }
 
 .tab-btn:hover {
-  background: #2c2f38;
+  background: var(--accent-soft);
 }
 
 .tab-btn.active {
   color: var(--text);
   background: var(--bg-panel);
-  border-bottom: 2px solid var(--desloc);
+  border-bottom: 2px solid var(--accent);
 }
 
 .tab-panel {
@@ -108,10 +143,12 @@ h1 {
 }
 
 .card-title {
-  font-size: 11px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -123,18 +160,23 @@ h1 {
   border-radius: 50%;
   display: inline-block;
   flex: none;
+  box-shadow: 0 0 4px currentColor;
 }
 .dot.pa {
   background: var(--pa);
+  color: var(--pa);
 }
 .dot.desloc {
   background: var(--desloc);
+  color: var(--desloc);
 }
 .dot.despertar {
   background: var(--despertar);
+  color: var(--despertar);
 }
 .dot.fluxo {
   background: var(--fluxo);
+  color: var(--fluxo);
 }
 
 .row {
@@ -158,8 +200,6 @@ h1 {
   color: var(--text-dim);
 }
 
-/* Par "input + legenda" empilhado, usado no PA e Deslocamento para deixar
-   claro qual campo é Atual e qual é Máximo. */
 .field-col {
   display: flex;
   flex-direction: column;
@@ -168,7 +208,8 @@ h1 {
 }
 
 .field-col-label {
-  font-size: 9.5px;
+  font-family: var(--font-ui);
+  font-size: 9px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -176,7 +217,8 @@ h1 {
 
 input[type="text"],
 input[type="number"] {
-  background: #14151a;
+  font-family: var(--font-ui);
+  background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
@@ -188,7 +230,7 @@ input[type="number"] {
 
 input[type="text"]:focus,
 input[type="number"]:focus {
-  outline: 2px solid var(--desloc);
+  outline: 2px solid var(--accent);
   outline-offset: 0;
 }
 
@@ -211,27 +253,31 @@ label.checkbox {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11.5px;
   cursor: pointer;
   user-select: none;
 }
 
 label.checkbox input {
-  accent-color: var(--desloc);
+  accent-color: var(--accent);
 }
 
 button {
-  font: inherit;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: #2c2f38;
+  background: var(--panel-dark);
   color: var(--text);
   padding: 6px 10px;
   cursor: pointer;
+  letter-spacing: 0.2px;
 }
 
 button:hover:not(:disabled) {
-  background: #363945;
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 button:disabled {
@@ -239,21 +285,10 @@ button:disabled {
   cursor: default;
 }
 
-button.primary {
-  background: var(--despertar);
-  border-color: var(--despertar);
-  color: #221a04;
-  font-weight: 700;
-}
-
-button.primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
 button.toggle-active {
-  background: var(--desloc);
-  border-color: var(--desloc);
-  color: #06213d;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--background);
   font-weight: 700;
 }
 
@@ -264,8 +299,8 @@ button.toggle-active:disabled {
 
 button.round {
   width: 100%;
-  background: var(--pa);
-  border-color: var(--pa);
+  background: #3ecf76;
+  border-color: #3ecf76;
   color: #062b13;
   font-weight: 700;
 }
@@ -275,17 +310,18 @@ button.round:hover {
 }
 
 .status-line {
-  font-size: 11px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
   color: var(--text-dim);
   min-height: 14px;
 }
 
 .status-line.active {
-  color: var(--despertar);
+  color: var(--accent);
 }
 
 .hint {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-dim);
   line-height: 1.4;
 }
@@ -296,17 +332,12 @@ hr {
   margin: 2px 0;
 }
 
-.gm-only {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 .link-btn {
   background: none;
   border: none;
   color: var(--danger);
-  font-size: 11px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
   text-decoration: underline;
   cursor: pointer;
   padding: 2px 0;
