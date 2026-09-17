@@ -44,11 +44,11 @@ export const VISUAL = {
   // maior dela acima do token (ver offsetSign em panel.js) — assim os dois
   // nunca se sobrepõem.
   MARKER_WIDTH: 150, // px de tela
-  DETAIL_WIDTH: 260, // px de tela (mais largo — é local/pessoal, não compete por espaço na mesa)
-  PANEL_HEIGHT_PER_LINE: 22, // px de tela por linha de texto
-  PANEL_PADDING: 8, // px de tela
-  FONT_SIZE: 13, // px de tela
-  CORNER_RADIUS: 10,
+  DETAIL_WIDTH: 220, // px de tela (reduzido, mas com folga pra não cortar texto)
+  PANEL_HEIGHT_PER_LINE: 19, // px de tela por linha de texto
+  PANEL_PADDING: 6, // px de tela
+  FONT_SIZE: 12, // px de tela
+  CORNER_RADIUS: 8,
   COLOR_NORMAL: "#17365c", // azul-marinho (Blue Soccer)
   COLOR_DESPERTAR: "#caa53d", // dourado — Despertar/Fluxo ativo
   COLOR_PENALIDADE: "#5c2323", // vermelho escuro — penalidade pós-Despertar/Fluxo
