@@ -78,20 +78,14 @@ export async function renderMarker(tokenId) {
   });
   if (!built) return;
 
-  const [existing] = await OBR.scene.local.getItems([built.id]);
-
-  if (existing) {
-    await OBR.scene.local.updateItems([built.id], (items) => {
-      for (const item of items) {
-        item.position = built.position;
-        item.text.plainText = built.plainText;
-        item.text.height = built.height;
-        item.style.backgroundColor = built.color;
-      }
-    });
-    return;
+  // Sempre apaga e recria do zero, em vez de tentar atualizar só alguns
+  // campos — assim largura, fonte e espaçamento nunca ficam "desatualizados"
+  // de uma versão anterior, mesmo que a gente mude essas medidas depois.
+  try {
+    await OBR.scene.local.deleteItems([built.id]);
+  } catch {
+    // não existia ainda — sem problema.
   }
-
   await OBR.scene.local.addItems([makeLabel(built)]);
 }
 
@@ -123,20 +117,11 @@ export async function renderDetail(tokenId) {
   });
   if (!built) return;
 
-  const [existing] = await OBR.scene.local.getItems([built.id]);
-
-  if (existing) {
-    await OBR.scene.local.updateItems([built.id], (items) => {
-      for (const item of items) {
-        item.position = built.position;
-        item.text.plainText = built.plainText;
-        item.text.height = built.height;
-        item.style.backgroundColor = built.color;
-      }
-    });
-    return;
+  try {
+    await OBR.scene.local.deleteItems([built.id]);
+  } catch {
+    // não existia ainda — sem problema.
   }
-
   await OBR.scene.local.addItems([makeLabel(built)]);
 }
 
