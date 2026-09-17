@@ -8,6 +8,13 @@ import {
   detailIdFor,
 } from "./shared.js";
 
+// Os glifos de pips (● ○) renderizam mais largos que uma letra comum, então
+// uma linha que os contenha ganha um espaço extra de altura — evita que o
+// texto fique maior do que o cálculo previu e corte embaixo.
+function weightedLineCount(lines) {
+  return lines.reduce((sum, line) => sum + (/[●○]/.test(line) ? 1.5 : 1), 0);
+}
+
 async function buildAndPlaceLabel({ tokenId, id, content, width, offsetMultiplier, pointerDirection }) {
   const [token] = await OBR.scene.items.getItems([tokenId]);
   if (!token) return null;
@@ -19,7 +26,7 @@ async function buildAndPlaceLabel({ tokenId, id, content, width, offsetMultiplie
     x: token.position.x,
     y: token.position.y + offsetMultiplier * dpi * VISUAL.OFFSET_Y_GRID,
   };
-  const height = VISUAL.PANEL_HEIGHT_PER_LINE * lines.length + VISUAL.PANEL_PADDING * 2;
+  const height = VISUAL.PANEL_HEIGHT_PER_LINE * weightedLineCount(lines) + VISUAL.PANEL_PADDING * 2;
   const plainText = lines.join("\n");
 
   return { token, id, position, height, plainText, color, width, pointerDirection };
@@ -111,7 +118,7 @@ export async function renderDetail(tokenId) {
     id: detailIdFor(tokenId),
     content: buildDetailContent(stats),
     width: VISUAL.DETAIL_WIDTH,
-    offsetMultiplier: -1.6, // acima do token, pra não sobrepor o marcador de baixo
+    offsetMultiplier: -1.05, // acima do token, mais perto — só o suficiente pra não sobrepor o marcador de baixo
     pointerDirection: "DOWN",
   });
   if (!built) return;
