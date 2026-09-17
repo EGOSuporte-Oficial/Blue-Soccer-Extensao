@@ -44,7 +44,7 @@ export const VISUAL = {
   // maior dela acima do token (ver offsetSign em panel.js) — assim os dois
   // nunca se sobrepõem.
   MARKER_WIDTH: 150, // px de tela
-  DETAIL_WIDTH: 210, // px de tela
+  DETAIL_WIDTH: 260, // px de tela (mais largo — é local/pessoal, não compete por espaço na mesa)
   PANEL_HEIGHT_PER_LINE: 22, // px de tela por linha de texto
   PANEL_PADDING: 8, // px de tela
   FONT_SIZE: 13, // px de tela
@@ -222,7 +222,12 @@ export function buildDetailContent(stats) {
   } else if (stats.despertar.usado) {
     lines.push(`Despertar usado nesta partida`);
   } else {
-    lines.push(`Despertar ${pips} ${pontos}/10`);
+    // Os círculos de pips ficam numa linha só pra eles — combinados com o
+    // texto "Despertar X/10" na mesma linha, a largura real deles (os
+    // glifos são mais largos que uma letra comum) podia estourar a caixa e
+    // cortar o texto.
+    lines.push(`Despertar ${pontos}/10`);
+    lines.push(pips);
   }
 
   if (stats.fluxo.ativo) {
