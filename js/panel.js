@@ -20,7 +20,7 @@ async function buildAndPlaceLabel({ tokenId, id, content, width, offsetMultiplie
   if (!token) return null;
 
   const dpi = await OBR.scene.grid.getDpi();
-  const { lines, color } = content;
+  const { lines, color, textColor } = content;
 
   const position = {
     x: token.position.x,
@@ -29,7 +29,7 @@ async function buildAndPlaceLabel({ tokenId, id, content, width, offsetMultiplie
   const height = VISUAL.PANEL_HEIGHT_PER_LINE * weightedLineCount(lines) + VISUAL.PANEL_PADDING * 2;
   const plainText = lines.join("\n");
 
-  return { token, id, position, height, plainText, color, width, pointerDirection };
+  return { token, id, position, height, plainText, color, textColor, width, pointerDirection };
 }
 
 function makeLabel(built) {
@@ -46,7 +46,7 @@ function makeLabel(built) {
     .textAlign("CENTER")
     .textAlignVertical("MIDDLE")
     .padding(VISUAL.PANEL_PADDING)
-    .fillColor(VISUAL.TEXT_COLOR)
+    .fillColor(built.textColor)
     .backgroundColor(built.color)
     .backgroundOpacity(0.95)
     .cornerRadius(VISUAL.CORNER_RADIUS)
