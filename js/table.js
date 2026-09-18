@@ -142,13 +142,21 @@ async function focusToken(tokenId) {
   if (!item) return;
 
   try {
-    const dpi = await OBR.scene.grid.getDpi();
-    const half = dpi * 0.75; // aproxima o "raio" de um token padrão
+    // Mantém o zoom atual do jogador: monta uma caixa do mesmo tamanho da
+    // área visível agora (em unidades do mundo), só que centralizada no
+    // token — assim a câmera só se move, sem forçar um zoom diferente.
+    const [scale, viewWidth, viewHeight] = await Promise.all([
+      OBR.viewport.getScale(),
+      OBR.viewport.getWidth(),
+      OBR.viewport.getHeight(),
+    ]);
+    const halfW = viewWidth / scale / 2;
+    const halfH = viewHeight / scale / 2;
     const bounds = {
-      min: { x: item.position.x - half, y: item.position.y - half },
-      max: { x: item.position.x + half, y: item.position.y + half },
-      width: half * 2,
-      height: half * 2,
+      min: { x: item.position.x - halfW, y: item.position.y - halfH },
+      max: { x: item.position.x + halfW, y: item.position.y + halfH },
+      width: halfW * 2,
+      height: halfH * 2,
       center: { x: item.position.x, y: item.position.y },
     };
     await OBR.viewport.animateToBounds(bounds);
