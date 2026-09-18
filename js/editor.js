@@ -7,6 +7,9 @@ import {
   clamp,
   advanceRound,
   deslocamentoMaximoEfetivo,
+  extractRoomSettings,
+  podeVerEstatisticas,
+  podeEditarToken,
 } from "./shared.js";
 import { renderMarker, removeMarker, refreshDetailIfVisible } from "./panel.js";
 
@@ -17,6 +20,7 @@ let stats = null;
 let role = "PLAYER";
 let activeTab = "stats"; // "stats" | "acoes"
 let markerHidden = false; // preferência PESSOAL deste jogador pra este token
+let canEdit = true; // se este jogador pode editar ESTE token (config. da sala)
 
 OBR.onReady(init);
 
@@ -35,11 +39,16 @@ async function init() {
 
   stats = getStats(item);
 
-  const metadata = await OBR.player.getMetadata();
-  const hiddenArr = metadata?.[HIDDEN_MARKERS_KEY];
+  const [playerMetadata, roomMetadata] = await Promise.all([
+    OBR.player.getMetadata(),
+    OBR.room.getMetadata(),
+  ]);
+  const hiddenArr = playerMetadata?.[HIDDEN_MARKERS_KEY];
   markerHidden = Array.isArray(hiddenArr) && hiddenArr.includes(itemId);
 
-  if (role !== "GM" && !stats.visivelParaJogadores) {
+  const roomSettings = extractRoomSettings(roomMetadata);
+
+  if (!podeVerEstatisticas(role, roomSettings)) {
     app.innerHTML = `
       <div class="locked">
         <strong>Estatísticas ocultas</strong><br />
@@ -47,6 +56,8 @@ async function init() {
       </div>`;
     return;
   }
+
+  canEdit = podeEditarToken(role, item, roomSettings, OBR.player.id);
 
   render();
 }
@@ -196,16 +207,17 @@ function template(s) {
   return `
     <h1>Editar Estatísticas</h1>
     <p class="subtitle">Blue Soccer RPG</p>
+    ${!canEdit ? `<p class="hint">Você só pode visualizar este token — ele não é seu.</p>` : ""}
 
     <div class="tabs">
       <button class="tab-btn ${activeTab === "stats" ? "active" : ""}" data-tab="stats">Estatísticas</button>
       <button class="tab-btn ${activeTab === "acoes" ? "active" : ""}" data-tab="acoes">Ações</button>
     </div>
 
-    <div class="tab-panel" style="${activeTab === "stats" ? "" : "display:none;"}">
+    <div class="tab-panel ${canEdit ? "" : "readonly"}" style="${activeTab === "stats" ? "" : "display:none;"}">
       ${statsTab}
     </div>
-    <div class="tab-panel" style="${activeTab === "acoes" ? "" : "display:none;"}">
+    <div class="tab-panel ${canEdit ? "" : "readonly"}" style="${activeTab === "acoes" ? "" : "display:none;"}">
       ${acoesTab}
     </div>
   `;
@@ -266,6 +278,11 @@ function wire() {
       render();
     });
   });
+
+  byId("marcador-mostrar").addEventListener("click", () => setMarkerHidden(false));
+  byId("marcador-ocultar").addEventListener("click", () => setMarkerHidden(true));
+
+  if (!canEdit) return; // resto do painel é só leitura pra este jogador
 
   byId("pa-atual").addEventListener("change", (e) => {
     stats.pa.atual = clamp(parseInlineValue(e.target.value, stats.pa.atual), 0, stats.pa.maximo);
@@ -354,9 +371,6 @@ function wire() {
     stats = advanceRound(stats);
     save();
   });
-
-  byId("marcador-mostrar").addEventListener("click", () => setMarkerHidden(false));
-  byId("marcador-ocultar").addEventListener("click", () => setMarkerHidden(true));
 
   byId("remover").addEventListener("click", async () => {
     if (!confirm("Remover as estatísticas de Blue Soccer deste token?")) return;
