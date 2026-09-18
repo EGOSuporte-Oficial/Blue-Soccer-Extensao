@@ -147,10 +147,13 @@ async function focusToken(tokenId) {
     const bounds = {
       min: { x: item.position.x - half, y: item.position.y - half },
       max: { x: item.position.x + half, y: item.position.y + half },
+      width: half * 2,
+      height: half * 2,
+      center: { x: item.position.x, y: item.position.y },
     };
     await OBR.viewport.animateToBounds(bounds);
-  } catch {
-    // segue o jogo sem o movimento de câmera.
+  } catch (err) {
+    console.error("[Blue Soccer] Falha ao mover a câmera:", err);
   }
 
   try {
