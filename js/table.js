@@ -159,9 +159,6 @@ async function focusToken(tokenId) {
   } catch (err) {
     console.error("[Blue Soccer] Falha ao mover a câmera:", err);
   }
-  } catch (err) {
-    console.error("[Blue Soccer] Falha ao mover a câmera:", err);
-  }
 
   try {
     await setHighlight(item);
