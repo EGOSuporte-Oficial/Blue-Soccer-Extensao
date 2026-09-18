@@ -1,5 +1,5 @@
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3";
-import { ID, STATS_KEY, HIDDEN_MARKERS_KEY } from "./shared.js";
+import { ID, STATS_KEY, HIDDEN_MARKERS_KEY, extractRoomSettings, podeVerEstatisticas } from "./shared.js";
 import { renderMarker, removeMarker, renderDetail, removeDetail } from "./panel.js";
 
 const BASE_URL = "https://egosuporte-oficial.github.io/Blue-Soccer-Extensao";
@@ -8,6 +8,10 @@ const BASE_URL = "https://egosuporte-oficial.github.io/Blue-Soccer-Extensao";
 // abaixo), pra não precisar buscar de novo toda hora.
 let cachedItems = [];
 
+// Papel deste jogador (GM/PLAYER) — não muda durante a sessão, então basta
+// ler uma vez ao iniciar.
+let role = "PLAYER";
+
 // Tokens que ESTE cliente está mostrando marcador/detalhe agora — usado só
 // pra saber o que remover quando algo muda (deixa de ser rastreado, foi
 // escondido pela preferência do jogador, ou o token sumiu).
@@ -15,10 +19,12 @@ let renderedMarkerIds = new Set();
 let detailedTokenIds = new Set();
 
 OBR.onReady(async () => {
+  role = await OBR.player.getRole();
   cachedItems = await OBR.scene.items.getItems();
   setupContextMenu();
   setupSceneSync();
   setupPlayerSync();
+  setupRoomSync();
   await syncMarkers();
 });
 
@@ -64,10 +70,12 @@ function setupContextMenu() {
 
 // ---------------------------------------------------------------------------
 // Marcador: cada cliente decide, pra cada token com estatísticas, se mostra
-// o marcador compacto — com base na preferência PESSOAL desse jogador
-// (HIDDEN_MARKERS_KEY em OBR.player.metadata, um array de IDs de token que
-// ELE escolheu não ver). Isso roda de novo sempre que os itens da cena
-// mudam (token novo, estatística editada) ou a preferência do jogador muda.
+// o marcador compacto — com base em duas coisas: a configuração de
+// visibilidade da SALA (se for "só o Mestre", jogadores não veem nada,
+// ponto final) e a preferência PESSOAL desse jogador (HIDDEN_MARKERS_KEY em
+// OBR.player.metadata, tokens que ELE escolheu não ver). Isso roda de novo
+// sempre que os itens da cena mudam, a preferência do jogador muda, ou o
+// Mestre altera as configurações da sala.
 // ---------------------------------------------------------------------------
 async function getHiddenSet() {
   const metadata = await OBR.player.getMetadata();
@@ -75,7 +83,22 @@ async function getHiddenSet() {
   return new Set(Array.isArray(arr) ? arr : []);
 }
 
+async function getRoomSettings() {
+  const metadata = await OBR.room.getMetadata();
+  return extractRoomSettings(metadata);
+}
+
 async function syncMarkers() {
+  const roomSettings = await getRoomSettings();
+
+  if (!podeVerEstatisticas(role, roomSettings)) {
+    for (const id of Array.from(renderedMarkerIds)) {
+      await removeMarker(id);
+      renderedMarkerIds.delete(id);
+    }
+    return;
+  }
+
   const hidden = await getHiddenSet();
   const trackedIds = new Set(
     cachedItems.filter((it) => it.metadata?.[STATS_KEY]).map((it) => it.id)
@@ -92,6 +115,16 @@ async function syncMarkers() {
     if (hidden.has(id)) continue;
     await renderMarker(id);
     renderedMarkerIds.add(id);
+  }
+}
+
+async function syncDetails() {
+  const roomSettings = await getRoomSettings();
+  if (!podeVerEstatisticas(role, roomSettings)) {
+    for (const id of Array.from(detailedTokenIds)) {
+      await removeDetail(id);
+      detailedTokenIds.delete(id);
+    }
   }
 }
 
@@ -131,15 +164,30 @@ function setupPlayerSync() {
       }
     }
 
-    for (const id of selection) {
-      if (detailedTokenIds.has(id)) continue;
-      const item = cachedItems.find((it) => it.id === id);
-      if (item?.metadata?.[STATS_KEY]) {
-        await renderDetail(id);
-        detailedTokenIds.add(id);
+    const roomSettings = await getRoomSettings();
+    if (podeVerEstatisticas(role, roomSettings)) {
+      for (const id of selection) {
+        if (detailedTokenIds.has(id)) continue;
+        const item = cachedItems.find((it) => it.id === id);
+        if (item?.metadata?.[STATS_KEY]) {
+          await renderDetail(id);
+          detailedTokenIds.add(id);
+        }
       }
     }
 
     await syncMarkers();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reage a mudanças nas configurações da sala (o Mestre mexeu em algo no
+// painel de Configurações): reaplica marcador/detalhe pra refletir na hora,
+// em todos os clientes conectados.
+// ---------------------------------------------------------------------------
+function setupRoomSync() {
+  OBR.room.onChange(async () => {
+    await syncMarkers();
+    await syncDetails();
   });
 }
