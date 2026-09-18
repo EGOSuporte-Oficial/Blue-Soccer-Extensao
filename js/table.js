@@ -157,6 +157,10 @@ async function focusToken(tokenId) {
       center: { x: item.position.x, y: item.position.y },
     };
     await OBR.viewport.animateToBounds(bounds);
+    // Espera a animação do movimento realmente terminar antes de ajustar o
+    // zoom — se os dois comandos disparam quase juntos, o segundo parece
+    // cancelar o primeiro (câmera não se move e o zoom nem muda).
+    await new Promise((resolve) => setTimeout(resolve, 400));
     await OBR.viewport.setScale(originalScale);
   } catch (err) {
     console.error("[Blue Soccer] Falha ao mover a câmera:", err);
