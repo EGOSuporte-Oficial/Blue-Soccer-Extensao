@@ -395,3 +395,40 @@ hr {
   padding: 2px 4px;
   font-size: 12px;
 }
+
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-row input[type="text"] {
+  width: 60px;
+}
+
+.settings-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-links a {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.settings-links a:hover {
+  text-decoration: underline;
+}
+
+.tab-panel.readonly {
+  position: relative;
+}
+
+.tab-panel.readonly input,
+.tab-panel.readonly button:not(#marcador-mostrar):not(#marcador-ocultar) {
+  opacity: 0.55;
+  pointer-events: none;
+}
