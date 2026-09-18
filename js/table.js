@@ -142,26 +142,23 @@ async function focusToken(tokenId) {
   if (!item) return;
 
   try {
-    // animateToBounds acerta a posição (confirmado no seu teste), mas o
-    // zoom que ele escolhe sozinho não bate com o que você já estava
-    // usando. Solução: guarda o zoom atual antes de mover, e força ele de
-    // volta logo depois — sem precisar calcular nada.
-    const originalScale = await OBR.viewport.getScale();
-    const dpi = await OBR.scene.grid.getDpi();
-    const half = dpi * 0.75;
-    const bounds = {
-      min: { x: item.position.x - half, y: item.position.y - half },
-      max: { x: item.position.x + half, y: item.position.y + half },
-      width: half * 2,
-      height: half * 2,
-      center: { x: item.position.x, y: item.position.y },
-    };
-    await OBR.viewport.animateToBounds(bounds);
-    // Espera a animação do movimento realmente terminar antes de ajustar o
-    // zoom — se os dois comandos disparam quase juntos, o segundo parece
-    // cancelar o primeiro (câmera não se move e o zoom nem muda).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    await OBR.viewport.setScale(originalScale);
+    // "position" da câmera parece ser o canto da área visível, não o
+    // centro — e esse canto depende do zoom. Por isso calculamos os dois
+    // juntos, num comando só, em vez de mover e ajustar zoom separado.
+    const [scale, viewWidth, viewHeight] = await Promise.all([
+      OBR.viewport.getScale(),
+      OBR.viewport.getWidth(),
+      OBR.viewport.getHeight(),
+    ]);
+    const halfW = viewWidth / (2 * scale);
+    const halfH = viewHeight / (2 * scale);
+    await OBR.viewport.animateTo({
+      position: { x: item.position.x - halfW, y: item.position.y - halfH },
+      scale,
+    });
+  } catch (err) {
+    console.error("[Blue Soccer] Falha ao mover a câmera:", err);
+  }
   } catch (err) {
     console.error("[Blue Soccer] Falha ao mover a câmera:", err);
   }
