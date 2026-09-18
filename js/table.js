@@ -160,6 +160,7 @@ async function focusToken(tokenId) {
       height: halfH * 2,
       center: { x: item.position.x, y: item.position.y },
     };
+    console.log("[Blue Soccer] token.position:", item.position, "scale:", scale, "bounds:", bounds);
     await OBR.viewport.animateToBounds(bounds);
   } catch (err) {
     console.error("[Blue Soccer] Falha ao mover a câmera:", err);
