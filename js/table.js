@@ -142,9 +142,10 @@ async function focusToken(tokenId) {
   if (!item) return;
 
   try {
-    // "position" da câmera parece ser o canto da área visível, não o
-    // centro — e esse canto depende do zoom. Por isso calculamos os dois
-    // juntos, num comando só, em vez de mover e ajustar zoom separado.
+    // animateToBounds usa o mesmo sistema de coordenadas dos tokens
+    // (confirmado no teste mais recente), então voltamos pra ele — mas
+    // agora usando o zoom atual (que leu certo) pra montar o tamanho da
+    // caixa, em vez de calcular uma "posição de canto" que não bateu.
     const [scale, viewWidth, viewHeight] = await Promise.all([
       OBR.viewport.getScale(),
       OBR.viewport.getWidth(),
@@ -152,10 +153,14 @@ async function focusToken(tokenId) {
     ]);
     const halfW = viewWidth / (2 * scale);
     const halfH = viewHeight / (2 * scale);
-    await OBR.viewport.animateTo({
-      position: { x: item.position.x - halfW, y: item.position.y - halfH },
-      scale,
-    });
+    const bounds = {
+      min: { x: item.position.x - halfW, y: item.position.y - halfH },
+      max: { x: item.position.x + halfW, y: item.position.y + halfH },
+      width: halfW * 2,
+      height: halfH * 2,
+      center: { x: item.position.x, y: item.position.y },
+    };
+    await OBR.viewport.animateToBounds(bounds);
   } catch (err) {
     console.error("[Blue Soccer] Falha ao mover a câmera:", err);
   }
