@@ -19,6 +19,49 @@ export const PARENT_KEY = `${ID}/parentId`;
 // pessoa na mesa decide por si só, sem afetar o que os outros veem.
 export const HIDDEN_MARKERS_KEY = `${ID}/hiddenMarkers`;
 
+// Chave usada em OBR.room.metadata pra guardar as configurações da SALA —
+// compartilhadas com todo mundo (diferente da preferência pessoal acima).
+export const ROOM_SETTINGS_KEY = `${ID}/settings`;
+
+// ---------------------------------------------------------------------------
+// Configurações da sala: aparência da bolha e permissões dos jogadores.
+// Ficam em OBR.room.metadata, então valem pra mesa inteira. Só o Mestre edita
+// (a interface restringe isso; quem chamar getRoomMetadata/setRoomMetadata
+// precisa importar o SDK e fazer a chamada — este arquivo não usa a OBR
+// diretamente, só a lógica de mesclar/interpretar os valores).
+// ---------------------------------------------------------------------------
+export function defaultRoomSettings() {
+  return {
+    offsetGrid: 0.85, // deslocamento vertical do marcador (múltiplos do DPI do grid)
+    justification: "BOTTOM", // "BOTTOM" | "TOP" — onde o marcador fica em relação ao token
+    showBars: false, // barrinhas (▰▱) em vez de números crus no marcador
+    nameTags: false, // mostra o nome do token junto no marcador
+    visibilidade: "TODOS", // "TODOS" (jogadores veem) | "MESTRE" (só o Mestre vê/edita)
+    edicaoLivre: false, // se true, jogadores podem editar token de qualquer um
+  };
+}
+
+export function extractRoomSettings(roomMetadata) {
+  return { ...defaultRoomSettings(), ...(roomMetadata?.[ROOM_SETTINGS_KEY] || {}) };
+}
+
+// ---------------------------------------------------------------------------
+// Permissões: quem pode ver e quem pode editar as estatísticas de um token,
+// combinando o papel do jogador (GM/PLAYER), as configurações da sala, e —
+// pra edição — se o token foi colocado por quem está tentando editar.
+// ---------------------------------------------------------------------------
+export function podeVerEstatisticas(role, roomSettings) {
+  if (roomSettings.visibilidade === "MESTRE") return role === "GM";
+  return true;
+}
+
+export function podeEditarToken(role, item, roomSettings, playerId) {
+  if (role === "GM") return true;
+  if (roomSettings.visibilidade === "MESTRE") return false;
+  if (roomSettings.edicaoLivre) return true;
+  return Boolean(item && playerId && item.createdUserId === playerId);
+}
+
 // IDs determinísticos — permitem achar/atualizar sempre o mesmo item, sem
 // precisar guardar referências cruzadas em metadata.
 export function markerIdFor(tokenId) {
@@ -179,20 +222,40 @@ function statusColors(stats) {
   return { bg: VISUAL.COLOR_NORMAL, text: VISUAL.TEXT_COLOR };
 }
 
+function miniBar(atual, maximo, segments = 8) {
+  const ratio = maximo > 0 ? clamp(atual / maximo, 0, 1) : 0;
+  const filled = Math.round(ratio * segments);
+  return "▰".repeat(filled) + "▱".repeat(Math.max(0, segments - filled));
+}
+
 // ---------------------------------------------------------------------------
 // MARCADOR (compacto, local por jogador — cada cliente decide se mostra ou
 // não, via a preferência guardada em OBR.player metadata): só PA,
 // Deslocamento, e códigos curtos pros estados que merecem atenção.
+//
+// roomSettings controla dois extras opcionais (configuráveis pelo Mestre):
+// mostrar barrinhas em vez de números, e mostrar o nome do token.
 // ---------------------------------------------------------------------------
-export function buildMarkerContent(stats) {
+export function buildMarkerContent(stats, roomSettings = defaultRoomSettings(), tokenName = "") {
+  const lines = [];
+
+  if (roomSettings.nameTags && tokenName) {
+    lines.push(tokenName);
+  }
+
   // Mostra o máximo BASE (o configurado, sem a redução), não o efetivo —
   // senão o número de máximo "some" e parece que o atual caiu sozinho.
   // O "(1/2)" avisa que a posse de bola está reduzindo o efetivo agora.
   const deslocSufixo = stats.posseDeBola ? " (1/2)" : "";
 
-  const lines = [
-    `PA ${stats.pa.atual}/${stats.pa.maximo}  |  DES ${stats.deslocamento.atual}/${stats.deslocamento.maximo}m${deslocSufixo}`,
-  ];
+  if (roomSettings.showBars) {
+    lines.push(`PA ${miniBar(stats.pa.atual, stats.pa.maximo)}`);
+    lines.push(`DES ${miniBar(stats.deslocamento.atual, stats.deslocamento.maximo)}${deslocSufixo}`);
+  } else {
+    lines.push(
+      `PA ${stats.pa.atual}/${stats.pa.maximo}  |  DES ${stats.deslocamento.atual}/${stats.deslocamento.maximo}m${deslocSufixo}`
+    );
+  }
 
   const tags = [];
   if (stats.despertar.ativo) tags.push("DESPERTAR");
