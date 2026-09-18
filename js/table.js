@@ -142,9 +142,22 @@ async function focusToken(tokenId) {
   if (!item) return;
 
   try {
-    // Só move a posição da câmera pro token, sem tocar no zoom — assim o
-    // zoom que você já estiver usando (17%, 20%, o que for) fica igual.
-    await OBR.viewport.setPosition(item.position);
+    // animateToBounds acerta a posição (confirmado no seu teste), mas o
+    // zoom que ele escolhe sozinho não bate com o que você já estava
+    // usando. Solução: guarda o zoom atual antes de mover, e força ele de
+    // volta logo depois — sem precisar calcular nada.
+    const originalScale = await OBR.viewport.getScale();
+    const dpi = await OBR.scene.grid.getDpi();
+    const half = dpi * 0.75;
+    const bounds = {
+      min: { x: item.position.x - half, y: item.position.y - half },
+      max: { x: item.position.x + half, y: item.position.y + half },
+      width: half * 2,
+      height: half * 2,
+      center: { x: item.position.x, y: item.position.y },
+    };
+    await OBR.viewport.animateToBounds(bounds);
+    await OBR.viewport.setScale(originalScale);
   } catch (err) {
     console.error("[Blue Soccer] Falha ao mover a câmera:", err);
   }
