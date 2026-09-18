@@ -142,24 +142,9 @@ async function focusToken(tokenId) {
   if (!item) return;
 
   try {
-    // Mantém o zoom atual do jogador: monta uma caixa do mesmo tamanho da
-    // área visível agora (em unidades do mundo), só que centralizada no
-    // token — assim a câmera só se move, sem forçar um zoom diferente.
-    const [scale, viewWidth, viewHeight] = await Promise.all([
-      OBR.viewport.getScale(),
-      OBR.viewport.getWidth(),
-      OBR.viewport.getHeight(),
-    ]);
-    const halfW = viewWidth / scale / 2;
-    const halfH = viewHeight / scale / 2;
-    const bounds = {
-      min: { x: item.position.x - halfW, y: item.position.y - halfH },
-      max: { x: item.position.x + halfW, y: item.position.y + halfH },
-      width: halfW * 2,
-      height: halfH * 2,
-      center: { x: item.position.x, y: item.position.y },
-    };
-    await OBR.viewport.animateToBounds(bounds);
+    // Só move a posição da câmera pro token, sem tocar no zoom — assim o
+    // zoom que você já estiver usando (17%, 20%, o que for) fica igual.
+    await OBR.viewport.setPosition(item.position);
   } catch (err) {
     console.error("[Blue Soccer] Falha ao mover a câmera:", err);
   }
