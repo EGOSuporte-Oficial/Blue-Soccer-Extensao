@@ -18,12 +18,13 @@ const itemId = new URLSearchParams(location.search).get("id");
 
 let stats = null;
 let role = "PLAYER";
-let activeTab = "stats"; // "stats" | "acoes"
-let markerHidden = false; // preferência PESSOAL deste jogador pra este token
-let canEdit = true; // se este jogador pode editar ESTE token (config. da sala)
+let activeTab = "stats";
+let markerHidden = false;
+let canEdit = true;
 
 OBR.onReady(init);
 
+// Inicialização
 async function init() {
   if (!itemId) {
     app.innerHTML = `<p class="error">Nenhum token selecionado.</p>`;
@@ -72,6 +73,7 @@ function render() {
   wire();
 }
 
+// Template
 function template(s) {
   const deslocMax = deslocamentoMaximoEfetivo(s);
 
@@ -223,13 +225,7 @@ function template(s) {
   `;
 }
 
-// ---------------------------------------------------------------------------
-// IMPORTANTE: sempre grava uma cópia "limpa" (JSON) do objeto de estatísticas,
-// nunca o objeto em si. A Owlbear Rodeo processa o valor gravado internamente
-// (usando Immer por baixo dos panos) e pode deixá-lo somente-leitura depois —
-// se a gente entregasse o mesmo objeto que continua em uso aqui no editor,
-// qualquer edição seguinte falhava silenciosamente.
-// ---------------------------------------------------------------------------
+// Salvar
 async function save() {
   await OBR.scene.items.updateItems([itemId], (items) => {
     for (const item of items) {
@@ -271,6 +267,7 @@ function wireEnterToBlur(id) {
   });
 }
 
+// Eventos
 function wire() {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -282,7 +279,7 @@ function wire() {
   byId("marcador-mostrar").addEventListener("click", () => setMarkerHidden(false));
   byId("marcador-ocultar").addEventListener("click", () => setMarkerHidden(true));
 
-  if (!canEdit) return; // resto do painel é só leitura pra este jogador
+  if (!canEdit) return;
 
   byId("pa-atual").addEventListener("change", (e) => {
     stats.pa.atual = clamp(parseInlineValue(e.target.value, stats.pa.atual), 0, stats.pa.maximo);
