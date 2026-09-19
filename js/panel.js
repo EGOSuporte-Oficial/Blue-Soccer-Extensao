@@ -9,9 +9,6 @@ import {
   extractRoomSettings,
 } from "./shared.js";
 
-// Os glifos de pips/barras (● ○ ▰ ▱) renderizam mais largos que uma letra
-// comum, então uma linha que os contenha ganha um espaço extra de altura —
-// evita que o texto fique maior do que o cálculo previu e corte embaixo.
 function weightedLineCount(lines) {
   return lines.reduce((sum, line) => sum + (/[●○▰▱]/.test(line) ? 1.5 : 1), 0);
 }
@@ -64,14 +61,7 @@ function makeLabel(built) {
     .build();
 }
 
-// ---------------------------------------------------------------------------
-// MARCADOR: item LOCAL (OBR.scene.local) — cada jogador vê (ou não) baseado
-// na própria preferência dele (HIDDEN_MARKERS_KEY em OBR.player.metadata,
-// gerenciado em background.js). Compacto de propósito.
-//
-// Posição e conteúdo respeitam as configurações da sala (offset, formação —
-// embaixo/cima do token —, barras em vez de números, e name tag).
-// ---------------------------------------------------------------------------
+// Marcador
 export async function renderMarker(tokenId) {
   const [token] = await OBR.scene.items.getItems([tokenId]);
   if (!token) return;
@@ -92,13 +82,10 @@ export async function renderMarker(tokenId) {
   });
   if (!built) return;
 
-  // Sempre apaga e recria do zero, em vez de tentar atualizar só alguns
-  // campos — assim largura, fonte e espaçamento nunca ficam "desatualizados"
-  // de uma versão anterior, mesmo que a gente mude essas medidas depois.
   try {
     await OBR.scene.local.deleteItems([built.id]);
   } catch {
-    // não existia ainda — sem problema.
+    // ok
   }
   await OBR.scene.local.addItems([makeLabel(built)]);
 }
@@ -107,16 +94,11 @@ export async function removeMarker(tokenId) {
   try {
     await OBR.scene.local.deleteItems([markerIdFor(tokenId)]);
   } catch {
-    // já não existia — sem problema.
+    // ok
   }
 }
 
-// ---------------------------------------------------------------------------
-// DETALHE: item LOCAL — só existe no cliente de quem selecionou o token.
-// Some sozinho quando o token é desselecionado (removeDetail é chamado
-// explicitamente nesse momento, em background.js). Sempre fica do lado
-// OPOSTO do marcador, pra nunca sobrepor.
-// ---------------------------------------------------------------------------
+// Detalhe
 export async function renderDetail(tokenId) {
   const [token] = await OBR.scene.items.getItems([tokenId]);
   if (!token) return;
@@ -139,7 +121,7 @@ export async function renderDetail(tokenId) {
   try {
     await OBR.scene.local.deleteItems([built.id]);
   } catch {
-    // não existia ainda — sem problema.
+    // ok
   }
   await OBR.scene.local.addItems([makeLabel(built)]);
 }
@@ -148,13 +130,10 @@ export async function removeDetail(tokenId) {
   try {
     await OBR.scene.local.deleteItems([detailIdFor(tokenId)]);
   } catch {
-    // já não existia — sem problema.
+    // ok
   }
 }
 
-// Atualiza o detalhe só se ele já estiver sendo exibido (token selecionado
-// no momento). Usado pelo editor.js/table.js ao salvar, pra manter o painel
-// local em dia sem criar um detalhe pra um token que ninguém selecionou.
 export async function refreshDetailIfVisible(tokenId) {
   const [existing] = await OBR.scene.local.getItems([detailIdFor(tokenId)]);
   if (existing) {
