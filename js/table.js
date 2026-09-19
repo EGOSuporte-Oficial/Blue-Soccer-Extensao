@@ -234,7 +234,7 @@ function renderSettings() {
     <div class="card">
       <div class="card-title">Suporte</div>
       <div class="settings-links">
-        <a href="https://egosuporte-oficial.github.io/Blue-Soccer-Extensao/#readme" target="_blank" rel="noopener">Instruções (README no GitHub)</a>
+        <a href="https://github.com/EGOSuporte-Oficial/Blue-Soccer-Extensao#readme" target="_blank" rel="noopener">Instruções (README no GitHub)</a>
         <p class="hint">Reportar um bug — copie e envie um e-mail pra: <strong>egorpg.suporte@gmail.com</strong></p>
         <a href="https://discord.gg/qFS6P5WMXA" target="_blank" rel="noopener">Servidor do Discord</a>
       </div>
