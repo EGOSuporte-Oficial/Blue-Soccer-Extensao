@@ -88,7 +88,7 @@ pelos links de suporte dentro da extensão.
 
 O conceito de bolhas de estatísticas grudadas no token é inspirado na
 [Stat Bubbles for D&D](https://github.com/seamuslowry/owlbear-stat-bubbles),
-de Seamus Finlayson — adaptada aqui do zero para as regras específicas de
+de Seamus Finlayson. Ela foi adaptada aqui do zero para as regras específicas de
 Blue Soccer.
 
 ## Licença
