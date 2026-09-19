@@ -52,7 +52,8 @@ escolha **Editar Estatísticas**. O painel abre em duas abas:
 - Remover as estatísticas do token.
 
 Dica: em qualquer campo de número, digite `+2` ou `-1` e aperte Enter para
-somar/subtrair rápido, sem apagar o valor todo.
+somar/subtrair rápido, sem apagar o valor todo. Escrever o valor direto também 
+funciona da mesma maneira.
 
 ## Tabela de Estatísticas
 
