@@ -36,8 +36,8 @@ OBR.onReady(async () => {
     render();
   });
 
-  OBR.room.onChange(async (room) => {
-    roomSettings = extractRoomSettings(room.metadata);
+  OBR.room.onMetadataChange(async (metadata) => {
+    roomSettings = extractRoomSettings(metadata);
     render();
   });
 });
@@ -235,7 +235,7 @@ function renderSettings() {
       <div class="card-title">Suporte</div>
       <div class="settings-links">
         <a href="https://egosuporte-oficial.github.io/Blue-Soccer-Extensao/#readme" target="_blank" rel="noopener">Instruções (README no GitHub)</a>
-        <a href="mailto:egorpg.suporte@gmail.com">Reportar um bug</a>
+        <p class="hint">Reportar um bug — copie e envie um e-mail pra: <strong>egorpg.suporte@gmail.com</strong></p>
         <a href="https://discord.gg/qFS6P5WMXA" target="_blank" rel="noopener">Servidor do Discord</a>
       </div>
     </div>
@@ -266,7 +266,11 @@ function wireSettings() {
     if (e.key === "Enter") e.target.blur();
   });
   offsetInput.addEventListener("change", (e) => {
-    const value = clamp(parseInlineValue(e.target.value, roomSettings.offsetGrid), 0.2, 3);
+    const value = clamp(
+      parseInlineValue(e.target.value, roomSettings.offsetGrid, { integer: false }),
+      0.2,
+      3
+    );
     updateRoomSetting({ offsetGrid: value });
   });
 
