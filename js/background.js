@@ -4,17 +4,8 @@ import { renderMarker, removeMarker, renderDetail, removeDetail } from "./panel.
 
 const BASE_URL = "https://egosuporte-oficial.github.io/Blue-Soccer-Extensao";
 
-// Cópia mais recente de todos os itens da cena (atualizada pelo onChange
-// abaixo), pra não precisar buscar de novo toda hora.
 let cachedItems = [];
-
-// Papel deste jogador (GM/PLAYER) — não muda durante a sessão, então basta
-// ler uma vez ao iniciar.
 let role = "PLAYER";
-
-// Tokens que ESTE cliente está mostrando marcador/detalhe agora — usado só
-// pra saber o que remover quando algo muda (deixa de ser rastreado, foi
-// escondido pela preferência do jogador, ou o token sumiu).
 let renderedMarkerIds = new Set();
 let detailedTokenIds = new Set();
 
@@ -28,16 +19,7 @@ OBR.onReady(async () => {
   await syncMarkers();
 });
 
-// ---------------------------------------------------------------------------
-// Menu de contexto: aparece ao clicar com o botão direito em um token nas
-// camadas de Personagem, Montaria ou Item. Abre o popover do editor,
-// ancorado no próprio ícone clicado.
-//
-// Observação: a Owlbear Rodeo não resolve caminho relativo nem absoluto
-// (tipo "/icons/stats.svg") do jeito que um navegador resolveria — ela só
-// concatena o domínio puro com o texto do caminho. Por isso o ícone e a
-// URL do popover aqui usam o link completo (BASE_URL).
-// ---------------------------------------------------------------------------
+// Menu de contexto
 function setupContextMenu() {
   OBR.contextMenu.create({
     id: `${ID}/context-menu`,
@@ -68,15 +50,7 @@ function setupContextMenu() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Marcador: cada cliente decide, pra cada token com estatísticas, se mostra
-// o marcador compacto — com base em duas coisas: a configuração de
-// visibilidade da SALA (se for "só o Mestre", jogadores não veem nada,
-// ponto final) e a preferência PESSOAL desse jogador (HIDDEN_MARKERS_KEY em
-// OBR.player.metadata, tokens que ELE escolheu não ver). Isso roda de novo
-// sempre que os itens da cena mudam, a preferência do jogador muda, ou o
-// Mestre altera as configurações da sala.
-// ---------------------------------------------------------------------------
+// Marcador
 async function getHiddenSet() {
   const metadata = await OBR.player.getMetadata();
   const arr = metadata?.[HIDDEN_MARKERS_KEY];
@@ -128,11 +102,7 @@ async function syncDetails() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Reage a mudanças na cena: dados de estatística mudaram, token novo
-// apareceu, ou um token foi apagado (nesse caso, limpa marcador e detalhe
-// órfãos deste cliente).
-// ---------------------------------------------------------------------------
+// Cena
 function setupSceneSync() {
   OBR.scene.items.onChange(async (items) => {
     cachedItems = items;
@@ -148,10 +118,7 @@ function setupSceneSync() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Reage a mudanças no jogador: seleção (mostra/some o detalhe completo) e
-// preferência de marcador (mostra/some o marcador compacto pra este token).
-// ---------------------------------------------------------------------------
+// Jogador
 function setupPlayerSync() {
   OBR.player.onChange(async (player) => {
     const selection = player.selection ?? [];
@@ -180,11 +147,7 @@ function setupPlayerSync() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Reage a mudanças nas configurações da sala (o Mestre mexeu em algo no
-// painel de Configurações): reaplica marcador/detalhe pra refletir na hora,
-// em todos os clientes conectados.
-// ---------------------------------------------------------------------------
+// Sala
 function setupRoomSync() {
   OBR.room.onMetadataChange(async () => {
     await syncMarkers();
