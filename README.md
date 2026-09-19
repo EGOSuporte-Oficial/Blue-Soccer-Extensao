@@ -1,63 +1,97 @@
-# Blue-Soccer-Extensao
-Primeira extensão para mesa de OwlBear para o sistema de Blue Soccer.
-Blue Soccer — Estatísticas (extensão para Owlbear Rodeo)
+# Blue Soccer — Estatísticas
 
-Extensão pra Owlbear Rodeo feita pro sistema de RPG Blue Soccer, no
-estilo da Stat Bubbles for D&D: em vez de HP/Armor Class, 
-ela acompanha PA, Deslocamento e Pontos de Despertar de cada personagem direto
-no token, pra mesa inteira ver sem precisar abrir ficha nenhuma.
+Extensão para a Owlbear Rodeo feita para o sistema de RPG **Blue Soccer**, no
+estilo da **Stat Bubbles for D&D** (de Seamus Finlayson): em vez de HP/Armor
+Class, ela acompanha **PA**, **Deslocamento**, **Pontos de Despertar** e
+**Fluxo** de cada personagem direto no token, para a mesa inteira ver sem
+precisar abrir ficha nenhuma.
 
-O que ela faz
+## Instalação
 
-- Clique com o botão direito num token > Editar Estatísticas abre um
-  painel com:
-  - PA (Pontos de Ação) - atual/máximo.
-  - Deslocamento - atual/máximo, em metros.
-  - Pontos de Despertar - 0 a 10, com pips visuais e um botão que ativa
-    o Despertar sozinho quando chega a 10 (liga 5 rodadas e, ao terminar,
-    já aplica a penalidade de -1 em atributos por 3 rodadas).
-  - Fluxo - mesma lógica: ativa por 5 rodadas (custa 3 PA, só 1x por
-    partida) e aplica a exaustão automaticamente ao terminar.
-  - Posse de Bola - toggle simples.
-  - Nova Rodada - um botão que recupera PA/Deslocamento e avança os
-    contadores de Despertar/Fluxo de uma vez.
-  - Um bloqueio de Mestre: dá pra deixar um token visível/editável só
-    pra você, sem os jogadores verem.
-- Toda alteração atualiza uma bolha colorida grudada no token, visível
-  pra todo mundo na mesa. Fica azul-marinho no normal, dourada com
-  Despertar/Fluxo ativos, e vermelho-escura durante as penalidades.
+A extensão ainda não está na loja oficial da Owlbear Rodeo, então a
+instalação é manual:
 
-Como instalar na sua mesa
-
-1. No seu perfil da Owlbear Rodeo, clique em Add Extension.
+1. No seu perfil da Owlbear Rodeo, clique em **Add Extension**.
 2. Cole esta URL:
+   ```
    https://egosuporte-oficial.github.io/Blue-Soccer-Extensao/manifest.json
-   
-3. Na sala, ative a extensão em Room Settings > Extensions.
-4. Clique com o botão direito num token (Personagem, Montaria ou Item) e
-   escolha Editar Estatísticas.
+   ```
+3. Na sala, ative a extensão em **Room Settings → Extensions**.
 
-Dica: nos campos de PA, Deslocamento e Despertar, digite +2 ou -1 e
-aperte Enter pra somar/subtrair rápido, sem precisar apagar o número todo.
+## Como funciona
 
-Estrutura do projeto (Estrutura projetada com ajuda da Claude.IA!)
+Cada token com estatísticas ganha duas bolhas diferentes:
 
-blue-soccer-obr/
-├── manifest.json
-├── background.html
-├── editor.html
-├── css/editor.css
-├── js/
-│   ├── shared.js       ← modelo de dados e regras de rodada
-│   ├── background.js   ← menu de contexto + limpeza de bolhas órfãs
-│   ├── panel.js        ← cria/atualiza a bolha no token
-│   └── editor.js        ← painel de edição
-└── icons/stats.svg
+- **Marcador** — pequeno, fica sempre visível pra mesa inteira, com PA e
+  Deslocamento num relance. Cada jogador pode escolher individualmente
+  esconder o marcador de um token específico (não afeta os outros).
+- **Detalhe** — a leitura completa, com pips do Despertar e status de
+  rodadas. Aparece só **pra você**, só quando **você seleciona** aquele
+  token, e some sozinho ao desselecionar.
 
-Tudo é HTML/CSS/JS puro (ES Modules), sem build step.
+## O Básico
 
-Sobre o sistema
+Clique com o botão direito num token (Personagem, Montaria ou Item) e
+escolha **Editar Estatísticas**. O painel abre em duas abas:
+
+**Estatísticas**
+- **PA (Pontos de Ação)** — atual/máximo.
+- **Deslocamento** — atual/máximo, em metros.
+- **Pontos de Despertar** — 0 a 10, com pips visuais. Ativa sozinho ao
+  chegar em 10 (liga 5 rodadas e, ao terminar, aplica a penalidade de -1 em
+  atributos por 3 rodadas). Só pode ser usado 1x por partida.
+- **Fluxo** — mesma lógica: ativa por 5 rodadas (custa 3 PA, só 1x por
+  partida) e aplica a exaustão automaticamente ao terminar.
+- **Posse de Bola** — ao ativar, o Deslocamento efetivo cai pela metade
+  (regra do Livro do Jogador), a menos que uma habilidade diga o contrário.
+
+**Ações**
+- Escolher se o marcador deste token aparece pra você ou não.
+- **Nova Rodada** — recupera PA e Deslocamento, avança os contadores de
+  Despertar/Fluxo.
+- Remover as estatísticas do token.
+
+Dica: em qualquer campo de número, digite `+2` ou `-1` e aperte Enter para
+somar/subtrair rápido, sem apagar o valor todo.
+
+## Tabela de Estatísticas
+
+Um botão na barra de ferramentas (ícone de grade) abre a tabela com todos
+os tokens rastreados na cena atual. De lá dá pra:
+
+- Ver e editar PA, Deslocamento e Despertar de qualquer token, direto na
+  lista.
+- Clicar numa linha para mover a câmera até aquele token e destacá-lo com
+  um contorno (visível só pra você).
+
+## Configurações
+
+Dentro da tabela, o botão **Configurações** dá acesso a:
+
+- **Permissões** (só o Mestre edita): quem pode ver as estatísticas (todos
+  ou só o Mestre) e quem pode editar cada token (só quem colocou o token,
+  ou qualquer jogador).
+- **Aparência da bolha**: formação (embaixo ou em cima do token),
+  distância, mostrar barras em vez de números, e mostrar o nome do token
+  junto (name tag).
+- **Suporte**: link para estas instruções, contato para reportar bugs, e o
+  convite do servidor do Discord — visível pra todo mundo.
+
+## Sobre o sistema
 
 Feita com base no Livro do Jogador de Blue Soccer (v0.9.3.2). Se você joga
-Blue Soccer e sentir falta de alguma mecânica no painel, abre uma issue ou
-manda sugestão.
+Blue Soccer e sentir falta de alguma mecânica no painel, entre em contato
+pelos links de suporte dentro da extensão.
+
+## Créditos
+
+O conceito de bolhas de estatísticas grudadas no token é inspirado na
+[Stat Bubbles for D&D](https://github.com/seamuslowry/owlbear-stat-bubbles),
+de Seamus Finlayson — adaptada aqui do zero para as regras específicas de
+Blue Soccer.
+
+## Licença
+
+Todos os direitos reservados. Sinta-se à vontade para instalar e usar a
+extensão pelo link acima, mas o código-fonte não deve ser copiado,
+redistribuído ou reaproveitado sem autorização.
