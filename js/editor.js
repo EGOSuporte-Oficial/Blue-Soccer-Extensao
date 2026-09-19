@@ -156,7 +156,7 @@ function template(s) {
       <div class="pips">${pips(s.despertar.pontos)}</div>
       <div class="row split">
         <label class="checkbox">
-          <input type="checkbox" id="despertar-usado" ${s.despertar.usado ? "checked" : ""} />
+          <input type="checkbox" id="despertar-usado" ${s.despertar.usado ? "checked" : ""} ${canEdit ? "" : "disabled"} />
           Já usado nesta partida
         </label>
       </div>
@@ -167,7 +167,7 @@ function template(s) {
       <div class="card-title"><span class="dot fluxo"></span>Fluxo</div>
       <div class="row split">
         <label class="checkbox">
-          <input type="checkbox" id="fluxo-usado" ${s.fluxo.usado ? "checked" : ""} />
+          <input type="checkbox" id="fluxo-usado" ${s.fluxo.usado ? "checked" : ""} ${canEdit ? "" : "disabled"} />
           Já usado nesta partida
         </label>
         <button id="fluxo-toggle" ${fluxoBtnDisabled}>${fluxoBtnLabel}</button>
@@ -177,7 +177,7 @@ function template(s) {
 
     <div class="card">
       <label class="checkbox">
-        <input type="checkbox" id="posse-bola" ${s.posseDeBola ? "checked" : ""} />
+        <input type="checkbox" id="posse-bola" ${s.posseDeBola ? "checked" : ""} ${canEdit ? "" : "disabled"} />
         Posse de Bola
       </label>
       <p class="hint">Enquanto estiver com a bola, o Deslocamento efetivo fica pela metade do máximo (a menos que uma habilidade diga o contrário).</p>
