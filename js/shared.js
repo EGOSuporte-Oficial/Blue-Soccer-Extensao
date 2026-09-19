@@ -153,17 +153,19 @@ export function getStats(item) {
 
 // ---------------------------------------------------------------------------
 // Parser de expressões rápidas: digitar "+2" soma ao valor atual, "-1"
-// subtrai, e um número "puro" substitui o valor. Sempre arredonda pro
-// inteiro mais próximo.
+// subtrai, e um número "puro" substitui o valor. Por padrão arredonda pro
+// inteiro mais próximo (PA, Deslocamento, Despertar); passe
+// { integer: false } pra permitir decimais (usado no offset da bolha).
 // ---------------------------------------------------------------------------
-export function parseInlineValue(inputStr, currentValue) {
+export function parseInlineValue(inputStr, currentValue, { integer = true } = {}) {
   const trimmed = String(inputStr).trim().replace(",", ".");
   if (trimmed === "") return currentValue;
+  const round = (n) => (integer ? Math.round(n) : Math.round(n * 100) / 100);
   if (/^[+-]\s*\d+(\.\d+)?$/.test(trimmed)) {
-    return Math.round(currentValue + parseFloat(trimmed.replace(/\s/g, "")));
+    return round(currentValue + parseFloat(trimmed.replace(/\s/g, "")));
   }
   const n = parseFloat(trimmed);
-  return Number.isNaN(n) ? currentValue : Math.round(n);
+  return Number.isNaN(n) ? currentValue : round(n);
 }
 
 export function clamp(value, min, max) {
@@ -249,8 +251,10 @@ export function buildMarkerContent(stats, roomSettings = defaultRoomSettings(), 
   const deslocSufixo = stats.posseDeBola ? " (1/2)" : "";
 
   if (roomSettings.showBars) {
-    lines.push(`PA ${miniBar(stats.pa.atual, stats.pa.maximo)}`);
-    lines.push(`DES ${miniBar(stats.deslocamento.atual, stats.deslocamento.maximo)}${deslocSufixo}`);
+    lines.push(`PA ${miniBar(stats.pa.atual, stats.pa.maximo)} ${stats.pa.atual}/${stats.pa.maximo}`);
+    lines.push(
+      `DES ${miniBar(stats.deslocamento.atual, stats.deslocamento.maximo)} ${stats.deslocamento.atual}/${stats.deslocamento.maximo}m${deslocSufixo}`
+    );
   } else {
     lines.push(
       `PA ${stats.pa.atual}/${stats.pa.maximo}  |  DES ${stats.deslocamento.atual}/${stats.deslocamento.maximo}m${deslocSufixo}`
