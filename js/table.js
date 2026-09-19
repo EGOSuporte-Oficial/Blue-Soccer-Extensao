@@ -19,7 +19,7 @@ let role = "PLAYER";
 let items = [];
 let roomSettings = extractRoomSettings(null);
 let highlightedId = null;
-let view = "list"; // "list" | "settings"
+let view = "list";
 
 function highlightIdFor(tokenId) {
   return `${ID}/highlight/${tokenId}`;
@@ -46,6 +46,7 @@ function trackedItems() {
   return items.filter((it) => Boolean(it.metadata?.[STATS_KEY]));
 }
 
+// Lista
 function render() {
   if (!podeVerEstatisticas(role, roomSettings)) {
     app.innerHTML = `
@@ -169,10 +170,7 @@ async function updateField(tokenId, field, rawValue) {
   await refreshDetailIfVisible(tokenId);
 }
 
-// ---------------------------------------------------------------------------
-// Tela de Configurações: permissões e aparência (só o Mestre edita) + links
-// de suporte (visíveis pra todo mundo).
-// ---------------------------------------------------------------------------
+// Configurações
 function renderSettings() {
   const s = roomSettings;
 
@@ -295,10 +293,7 @@ function byId(id) {
   return document.getElementById(id);
 }
 
-// ---------------------------------------------------------------------------
-// Clique na linha: move a câmera até o token e desenha um contorno de
-// destaque local (só você vê) por alguns segundos.
-// ---------------------------------------------------------------------------
+// Câmera
 async function focusToken(tokenId) {
   const item = items.find((it) => it.id === tokenId);
   if (!item) return;
@@ -326,7 +321,7 @@ async function focusToken(tokenId) {
   try {
     await setHighlight(item);
   } catch {
-    // segue o jogo sem o contorno de destaque.
+    // ok
   }
 }
 
@@ -358,7 +353,7 @@ async function setHighlight(item) {
   try {
     await OBR.scene.local.deleteItems([ring.id]);
   } catch {
-    // não existia ainda — sem problema.
+    // ok
   }
   await OBR.scene.local.addItems([ring]);
 
@@ -369,7 +364,7 @@ async function clearHighlight(tokenId) {
   try {
     await OBR.scene.local.deleteItems([highlightIdFor(tokenId)]);
   } catch {
-    // já não existia — sem problema.
+    // ok
   }
   if (highlightedId === tokenId) highlightedId = null;
 }
