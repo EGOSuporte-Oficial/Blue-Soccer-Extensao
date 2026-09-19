@@ -186,7 +186,7 @@ function setupPlayerSync() {
 // em todos os clientes conectados.
 // ---------------------------------------------------------------------------
 function setupRoomSync() {
-  OBR.room.onChange(async () => {
+  OBR.room.onMetadataChange(async () => {
     await syncMarkers();
     await syncDetails();
   });
